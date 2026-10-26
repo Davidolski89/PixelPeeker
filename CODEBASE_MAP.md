@@ -35,6 +35,7 @@ Verified against source on 2026-10-26 (0.10.39, Avalonia editor features and Lin
 | `tests/FFmpegStudio.Tests`, `tests/FFmpegStudio.Desktop.Tests`, `tests/FFmpegStudio.Avalonia.Tests` | Core/service tests, native WPF interaction regression test, and a headless Avalonia window test. |
 | `tools/FFmpegStudio.Verify` | Console entry point and real-FFmpeg integration suite. |
 | `Build.ps1`, `Publish.ps1` | Test/build entry points and portable publishing; **both run tests by default**. Publish supports `-SkipTests` after a separate successful run against the same source. |
+| `.github/workflows/ci.yml` | Pull-request and `main` CI. Windows builds `FFmpegStudio.sln` and runs its test projects. Ubuntu builds `FFmpegStudio.Linux.slnf`, runs those tests, and smoke-starts Avalonia. Does not publish. |
 | `docs` | [Editing](docs/FRAME-ACCURATE-EDITING.md), [comparison](docs/ENCODE-COMPARISON.md), [languages](docs/LANGUAGES.md), [architecture](docs/ARCHITECTURE.md), [verification history](docs/STATUS.md). |
 
 Skip `artifacts`, `.test-data`, `.vs`, `bin` and `obj` during routine code navigation; these contain outputs, fixtures or generated state.
@@ -143,6 +144,7 @@ Linux subset: `dotnet test FFmpegStudio.Linux.slnf -c Release` (skips the WPF pr
 - Published-app entry is `App.OnStartup` with `--smoke-test <output-folder> [source-file]`; optional `--seek`, `--playback`, `--cuts`, `--compare`, `--test-notice` exercise additional paths (`--idle-seek` extends `--seek`). Use an isolated `FFMPEG_STUDIO_DATA` root with toolchain configuration.
 - `src/FFmpegStudio.Desktop/App.EncodeComparisonSmoke.cs` holds published comparison checks; other smoke helpers are listed above. Historical evidence is indexed in [STATUS](docs/STATUS.md); do not treat it as a substitute for checking changed behavior.
 - For a broad implementation change, `dotnet test FFmpegStudio.sln -c Release` runs the test projects included in the solution, including the WPF project that builds only on Windows. `Publish.ps1` also runs tests by default before packaging; use `-SkipTests` only after a successful separate run against the same source. Avoid publishing when builds/tests are explicitly out of scope.
+- CI is `.github/workflows/ci.yml`. It does not set `FFMPEG_STUDIO_TEST_DATA` or `PIXELPEEKER_LIVE_FFMPEG`, and it does not run `tools/FFmpegStudio.Verify`.
 
 ## 7. Avalonia / Linux migration
 

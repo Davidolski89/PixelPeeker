@@ -1,5 +1,7 @@
 # PixelPeeker
 
+[![CI](https://github.com/Davidolski89/PixelPeeker/actions/workflows/ci.yml/badge.svg)](https://github.com/Davidolski89/PixelPeeker/actions/workflows/ci.yml)
+
 Native Windows 10/11 x64 video conversion built with WPF and .NET 10. The first usable release imports media, inspects it with ffprobe, detects encoders and filters in the installed FFmpeg build, configures each audio and subtitle stream, and runs real software or NVIDIA NVENC jobs. Its queue and settings persist in SQLite and JSON.
 
 **Linux / Avalonia (in progress).** Phase 1 extracts the portable services into `net10.0` libraries (`FFmpegStudio.Core`, `FFmpegStudio.Infrastructure`, `FFmpegStudio.Shared`) and adds an Avalonia desktop project, `src/FFmpegStudio.Avalonia`. That shell builds on Linux and Windows and reuses `LibraryViewModel`: open a media file, show ffprobe details when FFmpeg is already available, and list the saved queue. Playback, the full editor and downloading FFmpeg on Linux are later phases. The WPF app remains the complete Windows product. On Linux, build the portable subset with `dotnet build FFmpegStudio.Linux.slnf` and run `dotnet run --project src/FFmpegStudio.Avalonia/FFmpegStudio.Avalonia.csproj`. The WPF project targets `net10.0-windows` and does not build on Linux.
@@ -122,6 +124,8 @@ Linux playback does not bundle VLC. The Avalonia shell loads the system `libvlc`
 The app references CommunityToolkit.Mvvm (MIT), Microsoft.Extensions.DependencyInjection (MIT), Microsoft.Data.Sqlite (MIT), SharpCompress (MIT) and SQLitePCLRaw (Apache 2.0; SQLite engine code is public domain). The portable publish includes the applicable runtime licenses and third-party notices in `licenses/`; see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). xUnit (Apache 2.0) is a development and test dependency and is not part of the desktop app. Restored direct and transitive dependencies are listed by NuGet with dotnet list package --include-transitive.
 
 ## Tests
+
+[GitHub Actions](.github/workflows/ci.yml) runs on pull requests and on pushes to `main`. `windows-latest` restores and builds `FFmpegStudio.sln` in Release, including the WPF desktop project, then runs `dotnet test` for every test project in that solution (service tests, the off-screen STA tests in `FFmpegStudio.Desktop.Tests`, and the Avalonia headless tests). `ubuntu-latest` builds `FFmpegStudio.Linux.slnf`, runs those tests, and starts the Avalonia shell with `--smoke` under Xvfb. The workflow installs the SDK named in `global.json`, caches NuGet packages, and does not publish. Paths that need a real FFmpeg build or a GPU are not part of CI: they return immediately unless `FFMPEG_STUDIO_TEST_DATA` or `PIXELPEEKER_LIVE_FFMPEG` is set, and the workflow sets neither. `tools/FFmpegStudio.Verify` is a console tool, not a test project, so CI does not run it.
 
 dotnet test FFmpegStudio.sln -c Release exercises parsing, scaling, stream mapping, bitrate and quality rules, capability detection, update metadata, download integrity, archive path safety, queue recovery and preset remapping. The integration runner creates media and exercises actual encoding, sensors, a GPU and the installed FFmpeg build; see tools/FFmpegStudio.Verify.
 

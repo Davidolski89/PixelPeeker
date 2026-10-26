@@ -2,6 +2,7 @@
 
 ## Unveröffentlicht
 
+- GitHub Actions (`.github/workflows/ci.yml`) prüft Pull Requests und Pushes auf `main`. Windows baut `FFmpegStudio.sln` in Release und führt die Testprojekte aus, einschließlich der STA-Oberflächentests. Ubuntu baut `FFmpegStudio.Linux.slnf`, führt deren Tests aus und startet die Avalonia-Oberfläche mit `--smoke`. FFmpeg- und GPU-Integrationsläufe bleiben aus, solange `FFMPEG_STUDIO_TEST_DATA` und `PIXELPEEKER_LIVE_FFMPEG` nicht gesetzt sind.
 - Phase 1 der Avalonia-Migration: Prozesssteuerung, Hardwarewerte und die verwaltete FFmpeg-Installation liegen hinter Schnittstellen. `FFmpegStudio.Shared` (net10.0) enthält die gemeinsame Bibliotheks-, Medieninfo- und Queue-Logik.
 - Die Avalonia-Oberfläche bindet an `EditorViewModel`: Encoder, Qualität, Preset, Container, Skalierung, Crop, Schnitte, Presets, Befehlsvorschau und Queue-Befehle. Dateidialoge und Rückfragen bleiben in der jeweiligen Oberfläche. Die WPF-Anwendung ruft dieselbe Encoder-, Schnitt- und Befehlsvorschau-Logik auf.
 - Wiedergabe läuft über `IPlaybackSession`. Windows behält LibVLCSharp.WPF und das mitgelieferte LibVLC. Avalonia nutzt LibVLCSharp mit der Systembibliothek libvlc. LibVLCSharp.Avalonia entfällt, weil es Avalonia 11 verlangt.

@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "1"
+
+jobs:
+  windows:
+    name: Windows (solution, tests)
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: "**/*.csproj"
+
+      - name: Restore
+        run: dotnet restore FFmpegStudio.sln
+
+      - name: Build
+        run: dotnet build FFmpegStudio.sln -c Release --no-restore
+
+      # Service tests that need a managed FFmpeg tree return immediately when
+      # FFMPEG_STUDIO_TEST_DATA is unset. The live BtbN download stays off unless
+      # PIXELPEEKER_LIVE_FFMPEG=1. Neither variable is set here, and Verify is
+      # not a test project, so this does not download FFmpeg or require a GPU.
+      # The WPF project FFmpegStudio.Desktop.Tests drives an off-screen STA window.
+      - name: Test
+        run: dotnet test FFmpegStudio.sln -c Release --no-build --logger "console;verbosity=normal"
+
+  ubuntu:
+    name: Ubuntu (Linux filter, smoke)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: "**/*.csproj"
+
+      - name: Install display libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            xvfb \
+            libx11-6 \
+            libice6 \
+            libsm6 \
+            libfontconfig1 \
+            libfreetype6 \
+            libxext6 \
+            libxcursor1 \
+            libxi6 \
+            libxrandr2 \
+            libgl1 \
+            fonts-dejavu-core
+
+      - name: Restore
+        run: dotnet restore FFmpegStudio.Linux.slnf
+
+      - name: Build
+        run: dotnet build FFmpegStudio.Linux.slnf -c Release --no-restore
+
+      - name: Test
+        run: dotnet test FFmpegStudio.Linux.slnf -c Release --no-build --logger "console;verbosity=normal"
+
+      - name: Avalonia smoke
+        env:
+          FFMPEG_STUDIO_DATA: ${{ runner.temp }}/pixelpeeker-smoke
+        run: |
+          mkdir -p "$FFMPEG_STUDIO_DATA"
+          xvfb-run -a --server-args="-screen 0 1280x720x24" \
+            dotnet run --project src/FFmpegStudio.Avalonia/FFmpegStudio.Avalonia.csproj \
+            -c Release --no-build -- --smoke
