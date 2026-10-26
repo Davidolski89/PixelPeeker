@@ -1,5 +1,9 @@
 # Änderungen
 
+## 0.10.40 – 26. Oktober 2026
+
+- PixelPeeker steht unter der GNU General Public License v3.0 oder jeder späteren Version. Copyright 2026 David Nagel. Der vollständige Lizenztext liegt in LICENSE und wird mit der portablen Ausgabe verteilt.
+
 ## 0.10.39 – 24. Oktober 2026
 
 - Die erweiterten Codec-Einstellungen nutzen den Platz gleichmäßiger: SVT-AV1 zeigt Parallelität und Optimierung sowie Filmkorn und Deblocking paarweise; freie Parameter erhalten die ganze Breite.

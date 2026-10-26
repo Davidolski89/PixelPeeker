@@ -26,6 +26,7 @@ New-Item -ItemType Directory -Path $publishedDocs -Force | Out-Null
 foreach($document in @('STATUS.md','FRAME-ACCURATE-EDITING.md','ENCODE-COMPARISON.md','LANGUAGES.md','BRANDING.md')) {
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot ('docs/'+$document)) -Destination $publishedDocs -Force
 }
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'LICENSE') -Destination $publishPath -Force
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'THIRD-PARTY-NOTICES.md') -Destination $publishPath -Force
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'licenses') -Destination $publishPath -Recurse -Force
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'src/FFmpegStudio.Desktop/Assets/PixelPeeker.png'),(Join-Path $PSScriptRoot 'src/FFmpegStudio.Desktop/Assets/PixelPeeker.ico'),(Join-Path $PSScriptRoot 'src/FFmpegStudio.Desktop/Assets/PixelPeeker-prompt.txt') -Destination $publishPath -Force
