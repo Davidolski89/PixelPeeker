@@ -1,0 +1,11 @@
+<Project>
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <Deterministic>true</Deterministic>
+    <Version>0.10.39</Version>
+    <Authors>PixelPeeker</Authors>
+    <Product>PixelPeeker</Product>
+  </PropertyGroup>
+</Project>

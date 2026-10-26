@@ -1,0 +1,308 @@
+<Window x:Class="FFmpegStudio.Desktop.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:FFmpegStudio.Desktop" xmlns:vlc="clr-namespace:LibVLCSharp.WPF;assembly=LibVLCSharp.WPF" Title="PixelPeeker" Icon="Assets/PixelPeeker.ico" Background="{DynamicResource Bg}" Foreground="{DynamicResource Text}" Width="1540" Height="1020" MinWidth="1120" MinHeight="760" WindowStartupLocation="CenterScreen" AllowDrop="True" Drop="Window_Drop" DragOver="Window_DragOver">
+ <Window.InputBindings><KeyBinding Key="O" Modifiers="Control" Command="{Binding ImportFilesCommand}"/><KeyBinding Key="Return" Modifiers="Control" Command="{Binding AddQueueCommand}"/><KeyBinding Key="F5" Command="{Binding StartQueueCommand}"/></Window.InputBindings>
+ <Grid Margin="16">
+  <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="3*"/><RowDefinition Height="7"/><RowDefinition Height="1.2*" MinHeight="210"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+  <Grid Margin="0,0,0,15">
+   <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+   <StackPanel Orientation="Horizontal"><Image Width="42" Height="42" Margin="0,0,12,0" RenderOptions.BitmapScalingMode="HighQuality"><Image.Source><BitmapImage UriSource="Assets/PixelPeeker.png" DecodePixelWidth="96"/></Image.Source></Image><StackPanel><TextBlock Text="PixelPeeker" FontSize="24" FontWeight="SemiBold"/><TextBlock Text="{DynamicResource Loc.A76B55A6D6858526}" FontSize="10" Foreground="{DynamicResource Muted}" Margin="1,3,0,0"/></StackPanel></StackPanel>
+   <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"><TextBlock Text="{Binding InstalledVersion}" Foreground="{DynamicResource Muted}" Margin="0,0,14,0"/><Button local:ButtonHints.Key="ManageFFmpeg" Content="{DynamicResource Loc.A329B3E2D8A6E7D1}" Command="{Binding ManageFFmpegCommand}"/><Button local:ButtonHints.Key="EditSettings" Content="{DynamicResource Loc.F5750A5D7231E1F7}" Command="{Binding EditSettingsCommand}"/></StackPanel>
+  </Grid>
+  <Grid Grid.Row="1" Margin="0,0,0,12">
+   <Grid.ColumnDefinitions><ColumnDefinition Width="3*"/><ColumnDefinition Width="2*"/></Grid.ColumnDefinitions>
+   <WrapPanel x:Name="ImportActionsPanel"><Button local:ButtonHints.Key="ImportFiles" Content="{DynamicResource Loc.45CAC18986F15D02}" Command="{Binding ImportFilesCommand}"/><Button local:ButtonHints.Key="ImportFolder" Content="{DynamicResource Loc.33029BA1208B3DD1}" Command="{Binding ImportFolderCommand}"/><Button local:ButtonHints.Key="AddQueue" Content="{DynamicResource Loc.B0C3FA6252B1A8E5}" Command="{Binding AddQueueCommand}" Style="{StaticResource PrimaryButton}"/><Button local:ButtonHints.Key="AddSelected" Content="{DynamicResource Loc.722DC072A951A072}" Click="AddSelected_Click"/><Button local:ButtonHints.Key="ApplySelected" Content="{DynamicResource Loc.93B34E81EEFAB7F9}" Click="ApplySelected_Click"/><Button local:ButtonHints.Key="CancelOperation" Content="{DynamicResource Loc.7307AFA31AA181AF}" Command="{Binding CancelOperationCommand}" Visibility="{Binding IsBusy,Converter={StaticResource BoolVisibility}}"/></WrapPanel>
+   <TextBlock x:Name="HardwareMetricsText" Grid.Column="1" Text="{Binding HardwareText}" Foreground="{DynamicResource Muted}" FontSize="11" Margin="16,0,6,4" MaxHeight="48" TextAlignment="Right" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" local:ButtonHints.UsePreferences="True" ToolTip="{Binding HardwareText}"/>
+  </Grid>
+  <Grid Grid.Row="2">
+   <Grid.ColumnDefinitions><ColumnDefinition Width="235" MinWidth="180"/><ColumnDefinition Width="7"/><ColumnDefinition Width="*" MinWidth="650"/></Grid.ColumnDefinitions>
+   <Border Background="{DynamicResource Surface}" CornerRadius="8" Padding="10">
+    <DockPanel><StackPanel DockPanel.Dock="Top"><TextBlock Text="{DynamicResource Loc.06E7BB756A996CD1}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource Muted}" Margin="6,5,0,10"/><TextBlock Text="{DynamicResource Loc.10A2315355ACA8FF}" Foreground="{DynamicResource Muted}" FontSize="12" Margin="6,0,0,12"/></StackPanel>
+     <Button local:ButtonHints.Key="RemoveMedia" DockPanel.Dock="Bottom" Content="{DynamicResource Loc.D99D88DF4F7892FF}" Command="{Binding RemoveMediaCommand}" Margin="0,8,0,0"/>
+     <ListBox x:Name="MediaList" ItemsSource="{Binding Media}" SelectedItem="{Binding SelectedMedia}" SelectionMode="Extended" VirtualizingPanel.IsVirtualizing="True">
+      <ListBox.ItemTemplate><DataTemplate><StackPanel><Border CornerRadius="4" Background="{DynamicResource Bg}" Height="110"><Image Source="{Binding Thumbnail}" Stretch="Uniform"/></Border><TextBlock Text="{Binding Name}" FontWeight="SemiBold" Margin="0,8,0,4" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" local:ButtonHints.UsePreferences="True" ToolTip="{Binding Info.Path}"/><TextBlock Text="{Binding Summary}" FontSize="11" Foreground="{DynamicResource Muted}"/></StackPanel></DataTemplate></ListBox.ItemTemplate>
+     </ListBox>
+    </DockPanel>
+   </Border>
+   <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Center" Background="Transparent"/>
+   <Grid Grid.Column="2">
+    <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+    <TabControl x:Name="MainPreviewTabs" SelectionChanged="PreviewTabs_SelectionChanged">
+     <TabItem x:Name="PreviewTab" Header="{DynamicResource Loc.69337F6DE91475AD}">
+      <Grid x:Name="PreviewWorkspace" SizeChanged="PreviewLayout_SizeChanged"><Grid.ColumnDefinitions><ColumnDefinition x:Name="PreviewPaneColumn" Width="400" MinWidth="300"/><ColumnDefinition Width="12"/><ColumnDefinition x:Name="PreviewSettingsColumn" Width="*" MinWidth="320"/></Grid.ColumnDefinitions>
+      <Grid><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+       <Border x:Name="PreviewImageArea" local:ButtonHints.UsePreferences="True" ToolTip="{Binding PreviewStatus}" Background="#080B10" CornerRadius="5" HorizontalAlignment="Center" VerticalAlignment="Top"><Grid><TextBlock Text="{DynamicResource Loc.0EC32B291A071FF6}" Foreground="#67768C" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center"/><Image Source="{Binding PreviewImage}" Stretch="Uniform"/><vlc:VideoView x:Name="SourceVideoView" MediaPlayer="{Binding PlaybackPlayer}" Visibility="{Binding PlaybackActive,Converter={StaticResource BoolVisibility}}"><Grid Background="Transparent"><Grid Background="#66000000" Visibility="{Binding PlaybackBusy,Converter={StaticResource BoolVisibility}}" IsHitTestVisible="False"><local:LoadingSpinner Width="44" Height="44" HorizontalAlignment="Center" VerticalAlignment="Center"/></Grid></Grid></vlc:VideoView><Grid x:Name="PreviewActivity" Background="#66000000" Visibility="{Binding PreviewLoading,Converter={StaticResource BoolVisibility}}" IsHitTestVisible="False"><local:LoadingSpinner Width="44" Height="44" HorizontalAlignment="Center" VerticalAlignment="Center"/></Grid></Grid></Border>
+       <StackPanel x:Name="PreviewControls" Grid.Row="1" Margin="0,6,0,0" SizeChanged="PreviewLayout_SizeChanged"><WrapPanel Margin="0,0,0,5"><Button x:Name="PlaySourceButton" local:ButtonHints.Key="PlaySource" Content="{DynamicResource Loc.9551B722D7F89171}" Command="{Binding PlaySourceCommand}" Padding="9,4"/><Button x:Name="PauseSourceButton" local:ButtonHints.Key="PauseSource" Content="{DynamicResource Loc.858E4BA7A29FD38B}" Command="{Binding PauseSourceCommand}" Padding="9,4"/><Button x:Name="StopSourceButton" local:ButtonHints.Key="StopSource" Content="{DynamicResource Loc.268829685BF7F35F}" Command="{Binding StopSourceCommand}" Padding="9,4"/><Button local:ButtonHints.Key="SeekBackward" Content="−10 s" AutomationProperties.Name="{DynamicResource Loc.FD273F3323082120}" Command="{Binding SeekBackwardCommand}" Padding="8,4"/><Button local:ButtonHints.Key="SeekForward" Content="+10 s" AutomationProperties.Name="{DynamicResource Loc.FA27DE8793BBDF77}" Command="{Binding SeekForwardCommand}" Padding="8,4"/><Slider Width="68" Minimum="0" Maximum="100" Value="{Binding PlaybackVolume,Mode=TwoWay}" VerticalAlignment="Center" local:ButtonHints.UsePreferences="True" ToolTip="{DynamicResource Loc.3F7816AFCD4D7EBF}"/><CheckBox Content="{DynamicResource Loc.D9B25D566F67FB13}" IsChecked="{Binding PlaybackMuted}" VerticalAlignment="Center" Margin="8,0,0,0"/></WrapPanel><local:CutTimelineStrip Height="5" Margin="6,0,6,2" Cuts="{Binding CutEntries}" Duration="{Binding PreviewMaximum}" Active="{Binding SelectedMedia.Options.CutsEnabled}" IsHitTestVisible="False"/><Slider x:Name="PreviewTimeline" local:ButtonHints.UsePreferences="True" ToolTip="{DynamicResource Loc.7B4F6E8A5997A509}" Value="{Binding PreviewSeconds,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" IsMoveToPointEnabled="True" PreviewKeyDown="PreviewTimeline_KeyDown" Minimum="0" Maximum="{Binding PreviewMaximum}" TickFrequency="1" IsSnapToTickEnabled="False"/><WrapPanel x:Name="PreviewTestControls">
+        <StackPanel Orientation="Horizontal" Margin="0,0,12,0"><TextBlock Text="{DynamicResource Loc.348B548B5BD0ABDA}" Margin="0,0,8,5" Foreground="{DynamicResource Muted}"/><TextBox x:Name="PreviewPositionInput" Text="{Binding PreviewSeconds,UpdateSourceTrigger=PropertyChanged,StringFormat=F3}" Width="80"/></StackPanel>
+        <StackPanel Orientation="Horizontal" Margin="0,0,12,0"><TextBlock Text="{DynamicResource Loc.D72FDEA674BD10D8}" Margin="0,0,8,5" Foreground="{DynamicResource Muted}"/><TextBox x:Name="TestLengthInput" Text="{Binding TestSeconds,UpdateSourceTrigger=PropertyChanged}" Width="60"/></StackPanel>
+        <Button x:Name="TestEncodeButton" local:ButtonHints.Key="TestEncode" Content="{DynamicResource Loc.053BDCAE114D989C}" Command="{Binding TestEncodeCommand}" Style="{StaticResource PrimaryButton}" Padding="9,5"/>
+       </WrapPanel></StackPanel>
+      </Grid>
+       <TabControl x:Name="PreviewSettingsTabs" Grid.Column="2">
+     <TabItem x:Name="CutSettingsTab" Header="{DynamicResource Loc.0BC3B4A5B11B6CD0}"><local:CutEditorControl/></TabItem>
+     <TabItem x:Name="FiltersSettingsTab" Header="{DynamicResource Loc.638E249F4A15EBB8}">
+      <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel>
+       <TextBlock Text="{DynamicResource Loc.7ACBC1D05ADA0BE2}" Style="{StaticResource Section}"/><ComboBox ItemTemplate="{StaticResource LocalizedItemTemplate}" ItemsSource="{x:Static local:MainViewModel.ScaleModes}" SelectedItem="{Binding SelectedMedia.Options.Filters.ScaleMode}"/>
+       <TextBlock Text="{DynamicResource Loc.C10A99646241CE6B}" Style="{StaticResource Label}"/><UniformGrid Columns="2"><TextBox Text="{Binding SelectedMedia.Options.Filters.Width,UpdateSourceTrigger=PropertyChanged}" Margin="0,0,8,5"/><TextBox Text="{Binding SelectedMedia.Options.Filters.Height,UpdateSourceTrigger=PropertyChanged}"/></UniformGrid>
+       <TextBlock Text="{DynamicResource Loc.4C6BC45801265427}" Style="{StaticResource Label}"/><TextBox Text="{Binding SelectedMedia.Options.Filters.Percent,UpdateSourceTrigger=PropertyChanged}"/>
+       <CheckBox Content="{DynamicResource Loc.06787C73BDCD825A}" IsChecked="{Binding SelectedMedia.Options.Filters.AllowUpscale}"/>
+       <TextBlock Text="{DynamicResource Loc.C7788057B0AF41BF}" Style="{StaticResource Label}"/><ComboBox ItemsSource="{x:Static local:MainViewModel.Algorithms}" SelectedItem="{Binding SelectedMedia.Options.Filters.Algorithm,Converter={StaticResource SelectionValue}}"/>
+       <Expander Header="{DynamicResource Loc.E0A40C1E7DAC2C50}"><StackPanel>
+        <Button local:ButtonHints.Key="DetectCrop" Content="{DynamicResource Loc.38DBFB1CF3C162A6}" Command="{Binding DetectCropCommand}"/><CheckBox Content="{DynamicResource Loc.F75639AF53580F1C}" IsChecked="{Binding SelectedMedia.Options.Filters.CropEnabled}"/>
+        <TextBlock Text="{DynamicResource Loc.6FD2735214881730}" Style="{StaticResource Label}"/><UniformGrid Columns="4"><TextBox Text="{Binding SelectedMedia.Options.Filters.CropLeft,UpdateSourceTrigger=PropertyChanged}" Margin="0,0,5,5"/><TextBox Text="{Binding SelectedMedia.Options.Filters.CropRight,UpdateSourceTrigger=PropertyChanged}" Margin="0,0,5,5"/><TextBox Text="{Binding SelectedMedia.Options.Filters.CropTop,UpdateSourceTrigger=PropertyChanged}" Margin="0,0,5,5"/><TextBox Text="{Binding SelectedMedia.Options.Filters.CropBottom,UpdateSourceTrigger=PropertyChanged}"/></UniformGrid>
+        <CheckBox Content="{DynamicResource Loc.6D160FC57D0749D6}" IsChecked="{Binding SelectedMedia.Options.Filters.PadEnabled}"/><TextBlock Text="{DynamicResource Loc.269A3DDDFFCA169D}" Style="{StaticResource Label}"/><UniformGrid Columns="2"><TextBox Text="{Binding SelectedMedia.Options.Filters.PadWidth,UpdateSourceTrigger=PropertyChanged}" Margin="0,0,8,5"/><TextBox Text="{Binding SelectedMedia.Options.Filters.PadHeight,UpdateSourceTrigger=PropertyChanged}"/></UniformGrid>
+       </StackPanel></Expander>
+       <Expander Header="{DynamicResource Loc.470EF8D2EB486050}"><StackPanel>
+        <CheckBox Content="{DynamicResource Loc.075853A4A5883A34}" IsChecked="{Binding SelectedMedia.Options.Filters.Deinterlace}"/>
+        <TextBlock Text="{DynamicResource Loc.0E6A092331EAEE68}" Style="{StaticResource Label}"/><TextBox Text="{Binding SelectedMedia.Options.Filters.FrameRate,UpdateSourceTrigger=PropertyChanged}"/>
+        <TextBlock Text="{DynamicResource Loc.0F383720E346D67F}" Style="{StaticResource Label}"/><TextBox Text="{Binding SelectedMedia.Options.Filters.Rotation,UpdateSourceTrigger=PropertyChanged}"/>
+        <CheckBox Content="{DynamicResource Loc.BFF65DABDD494C65}" IsChecked="{Binding SelectedMedia.Options.Filters.FlipHorizontal}"/><CheckBox Content="{DynamicResource Loc.40AD2814423A32DF}" IsChecked="{Binding SelectedMedia.Options.Filters.FlipVertical}"/>
+       </StackPanel></Expander>
+       <Expander Header="{DynamicResource Loc.7095D8FA46AD71A0}"><StackPanel>
+        <CheckBox Content="{DynamicResource Loc.9F9A0C074EF94CAC}" IsChecked="{Binding SelectedMedia.Options.Filters.ToneMap}"/><TextBlock Text="{DynamicResource Loc.9E0E50654572EBB3}" Style="{StaticResource Label}"/><TextBox Text="{Binding SelectedMedia.Options.Filters.ToneMapAlgorithm,UpdateSourceTrigger=PropertyChanged}"/>
+        <TextBlock Text="{DynamicResource Loc.0584BA34B8E92AAC}" Style="{StaticResource Label}"/><TextBox Text="{Binding SelectedMedia.Options.Filters.ColorSpace,UpdateSourceTrigger=PropertyChanged}"/>
+       </StackPanel></Expander>
+       <Expander Header="{DynamicResource Loc.7749F13FE603EE22}"><StackPanel><TextBlock Text="{DynamicResource Loc.A662F70247B885D5}" FontSize="11" Foreground="{DynamicResource Warning}" Margin="0,5,0,8"/><TextBox Text="{Binding SelectedMedia.Options.Filters.CustomChain,UpdateSourceTrigger=PropertyChanged}" MinHeight="65" AcceptsReturn="True" TextWrapping="Wrap"/></StackPanel></Expander>
+       <WrapPanel><Button local:ButtonHints.Key="ShowPreview" Content="{DynamicResource Loc.E4196A06B7F490BA}" Command="{Binding ShowPreviewCommand}"/><Button local:ButtonHints.Key="ShowFilteredPreview" Content="{DynamicResource Loc.28E30CE595127C6A}" Command="{Binding ShowFilteredPreviewCommand}"/></WrapPanel>
+      </StackPanel></ScrollViewer>
+     </TabItem>
+       </TabControl>
+      </Grid>
+     </TabItem>
+     <TabItem x:Name="EncodeSettingsTab" Header="{DynamicResource Loc.B67DDE9AA9D70BE6}">
+      <Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+    <DockPanel Margin="0,0,0,10"><TextBlock DockPanel.Dock="Left" Margin="0,0,10,0" Text="{DynamicResource Loc.2AC620C6A7E03D42}" Foreground="{DynamicResource Muted}" FontSize="10"/>
+     <ComboBox DockPanel.Dock="Left" Width="280" VerticalAlignment="Center" Margin="0,0,14,0" x:Name="PresetSelector" ItemsSource="{Binding Presets}" SelectedItem="{Binding SelectedPreset}" ItemTemplate="{StaticResource LocalizedPresetTemplate}" local:ButtonHints.UsePreferences="True" ToolTip="{local:TranslatedValue Path=SelectedPreset.Description}"/>
+     <WrapPanel><Button local:ButtonHints.Key="SavePreset" Content="{DynamicResource Loc.F6B2FF39F540EB81}" Command="{Binding SavePresetCommand}" Padding="9,4"/><Button local:ButtonHints.Key="EditPreset" Content="{DynamicResource Loc.84E45EE7341134DB}" Command="{Binding EditPresetCommand}" Padding="9,4"/><Button local:ButtonHints.Key="DuplicatePreset" Content="{DynamicResource Loc.C437AD4EDEC51770}" Command="{Binding DuplicatePresetCommand}" Padding="9,4"/><Button local:ButtonHints.Key="ImportPreset" Content="{DynamicResource Loc.2CFF9BAABF56CA00}" Command="{Binding ImportPresetCommand}" Padding="9,4"/><Button local:ButtonHints.Key="ExportPreset" Content="{DynamicResource Loc.3664895579F0A7E6}" Command="{Binding ExportPresetCommand}" Padding="9,4"/><Button local:ButtonHints.Key="DeletePreset" Content="{DynamicResource Loc.6C2D352161DF5809}" Command="{Binding DeletePresetCommand}" Padding="9,4"/></WrapPanel>
+    </DockPanel>
+       <TabControl x:Name="SettingsTabs" Grid.Row="1">
+        <TabItem x:Name="VideoSettingsTab" Header="{DynamicResource Loc.D534BE829E32196B}">
+         <ScrollViewer x:Name="VideoSettingsScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+          <StackPanel x:Name="VideoSettingsColumns" Margin="0,0,4,0">
+           <Grid x:Name="VideoBasicSettings">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+            <StackPanel>
+             <TextBlock Text="{DynamicResource Loc.BE0140B3E1D99E21}" Style="{StaticResource Label}" Margin="0,0,0,5"/>
+             <ComboBox x:Name="VideoEncoderSelector" ItemsSource="{Binding VideoEncoders}" SelectedValuePath="Name" SelectedValue="{Binding SelectedMedia.Options.Video.Encoder,Converter={StaticResource SelectionValue}}" local:ButtonHints.UsePreferences="True" ToolTip="{Binding EncoderInfo}"><ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{local:TranslatedValue Format=VideoEncoder}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" FontSize="12" local:ButtonHints.UsePreferences="True" ToolTip="{Binding Description}"/></DataTemplate></ComboBox.ItemTemplate></ComboBox>
+            </StackPanel>
+            <StackPanel Grid.Column="2">
+             <TextBlock Text="{DynamicResource Loc.C7694A0FF58C03AE}" Style="{StaticResource Label}" Margin="0,0,0,5"/>
+             <ComboBox x:Name="VideoRateControlSelector" ItemTemplate="{StaticResource VideoRateControlTemplate}" ItemsSource="{x:Static local:MainViewModel.RateControls}" SelectedItem="{Binding SelectedMedia.Options.Video.RateControl}" local:ButtonHints.UsePreferences="True" ToolTip="{Binding VideoModeDescription}"/>
+            </StackPanel>
+            <Border Grid.Row="1" Grid.ColumnSpan="3" Height="1" Background="{DynamicResource Border}" Margin="0,4,0,4"/>
+            <Grid Grid.Row="2">
+             <StackPanel Style="{StaticResource OptionField}" IsEnabled="{Binding SelectedMedia.Options.Video.CanEditQuality,FallbackValue=False}" Visibility="{Binding SelectedMedia.Options.Video.CanEditQuality,Converter={StaticResource BoolVisibility},FallbackValue=Collapsed}">
+              <DockPanel MinHeight="24" Margin="0,0,0,2">
+               <Border DockPanel.Dock="Right" Background="{DynamicResource Raised}" CornerRadius="4" Padding="9,3" MinWidth="44" Margin="8,0,0,0"><TextBlock x:Name="VideoQualityValue" Text="{Binding SelectedMedia.Options.Video.Quality,StringFormat={}{0:0.##}}" Foreground="{DynamicResource Accent}" FontWeight="SemiBold" TextAlignment="Center"/></Border>
+               <TextBlock Text="{Binding VideoQualityLabel}" Style="{StaticResource Label}" Margin="0" VerticalAlignment="Center"/>
+              </DockPanel>
+              <local:QualitySlider x:Name="VideoQualityInput" Style="{StaticResource QualitySliderStyle}" Range="{Binding VideoQualityRange}" QualityValue="{Binding SelectedMedia.Options.Video.Quality,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{Binding VideoQualityLabel}" local:ButtonHints.UsePreferences="True" ToolTip="{Binding VideoQualityHint}"/>
+              <Grid><TextBlock x:Name="VideoQualityMinimum" Text="{Binding VideoQualityRange.Minimum}" HorizontalAlignment="Left" Foreground="{DynamicResource Muted}" FontSize="11"/><TextBlock x:Name="VideoQualityMaximum" Text="{Binding VideoQualityRange.Maximum}" HorizontalAlignment="Right" Foreground="{DynamicResource Muted}" FontSize="11"/></Grid>
+              <TextBlock Text="{Binding VideoQualityHint}" Foreground="{DynamicResource Muted}" FontSize="11" Margin="0,4,0,0"/>
+             </StackPanel>
+             <StackPanel Style="{StaticResource OptionField}" IsEnabled="{Binding SelectedMedia.Options.Video.CanEditBitrate,FallbackValue=False}" Visibility="{Binding SelectedMedia.Options.Video.CanEditBitrate,Converter={StaticResource BoolVisibility},FallbackValue=Collapsed}">
+              <TextBlock Text="{DynamicResource Loc.44D83989094F8893}" Style="{StaticResource Label}" Margin="0,0,0,5" MinHeight="24"/>
+              <TextBox x:Name="VideoBitrateInput" Text="{Binding SelectedMedia.Options.Video.BitRateKbps,UpdateSourceTrigger=PropertyChanged}"/>
+             </StackPanel>
+            </Grid>
+            <StackPanel Grid.Row="2" Grid.Column="2" Style="{StaticResource OptionField}" IsEnabled="{Binding CanSetPreset}">
+             <Grid MinHeight="24" Margin="0,0,0,2"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+              <TextBlock x:Name="VideoPresetLabel" Text="{DynamicResource Loc.F4489D064CFFF1B7}" Style="{StaticResource Label}" Margin="0" VerticalAlignment="Center"/>
+              <Border Grid.Column="1" HorizontalAlignment="Right" Background="{DynamicResource Raised}" CornerRadius="4" Padding="9,3" Margin="8,0,0,0"><TextBlock x:Name="VideoPresetValue" Text="{Binding VideoPresetText}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource Accent}" FontWeight="SemiBold" FontSize="12" local:ButtonHints.UsePreferences="True" ToolTip="{Binding VideoPresetText}"/></Border>
+             </Grid>
+             <local:PresetSlider x:Name="VideoPresetSelector" Style="{StaticResource QualitySliderStyle}" Choices="{Binding VideoPresetValues}" DefaultPreset="{Binding VideoPresetDefault}" Preset="{Binding SelectedMedia.Options.Video.Preset,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{DynamicResource Loc.F4489D064CFFF1B7}" local:ButtonHints.UsePreferences="True" ToolTip="{Binding VideoPresetText}"/>
+             <Grid><TextBlock Text="{Binding VideoPresetMinimum}" HorizontalAlignment="Left" Foreground="{DynamicResource Muted}" FontSize="11"/><TextBlock Text="{Binding VideoPresetMaximum}" HorizontalAlignment="Right" Foreground="{DynamicResource Muted}" FontSize="11"/></Grid>
+             <TextBlock Text="{Binding VideoPresetDescription}" FontSize="11" Foreground="{DynamicResource Muted}" Margin="0,4,0,0"/>
+            </StackPanel>
+           </Grid>
+           <StackPanel x:Name="VideoAdvancedSettings" Margin="0,12,0,0">
+            <StackPanel.Resources><Style x:Key="CodecFieldLabel" TargetType="TextBlock" BasedOn="{StaticResource Label}"><Setter Property="TextWrapping" Value="Wrap"/><Setter Property="VerticalAlignment" Value="Bottom"/></Style></StackPanel.Resources>
+            <Border BorderBrush="{DynamicResource Border}" BorderThickness="0,1,0,0">
+             <Expander x:Name="VideoFormatSettings" Header="{DynamicResource Loc.429F18308D4A0D51}" Margin="0" Padding="6">
+              <Grid Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+               <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+               <TextBlock Text="{DynamicResource Loc.8CEE9240A893C065}" Style="{StaticResource CodecFieldLabel}"/>
+               <ComboBox x:Name="VideoPixelFormatSelector" Grid.Row="1" ItemsSource="{Binding PixelFormats}" SelectedItem="{Binding SelectedMedia.Options.Video.PixelFormat,Converter={StaticResource SelectionValue}}"/>
+               <TextBlock Grid.Column="2" Text="{DynamicResource Loc.E267D343821F264E}" Style="{StaticResource CodecFieldLabel}"/>
+               <ComboBox x:Name="VideoProfileSelector" Grid.Row="1" Grid.Column="2" ItemsSource="{Binding ProfileChoices}" IsEditable="True" Text="{Binding SelectedMedia.Options.Video.Profile,UpdateSourceTrigger=PropertyChanged,Converter={StaticResource SelectionValue}}"/>
+               <TextBlock Grid.Row="2" Text="{DynamicResource Loc.C289C01A166B0E05}" Style="{StaticResource CodecFieldLabel}"/>
+               <TextBox x:Name="VideoLevelInput" Grid.Row="3" Text="{Binding SelectedMedia.Options.Video.Level,UpdateSourceTrigger=PropertyChanged}"/>
+               <TextBlock Grid.Row="2" Grid.Column="2" Text="{DynamicResource Loc.29670893D247702D}" Style="{StaticResource CodecFieldLabel}" Visibility="{Binding CanSetTune,Converter={StaticResource BoolVisibility}}"/>
+               <ComboBox x:Name="VideoTuneSelector" Grid.Row="3" Grid.Column="2" ItemsSource="{Binding TuneChoices}" IsEditable="True" Text="{Binding SelectedMedia.Options.Video.Tune,UpdateSourceTrigger=PropertyChanged,Converter={StaticResource SelectionValue}}" IsEnabled="{Binding CanSetTune}" Visibility="{Binding CanSetTune,Converter={StaticResource BoolVisibility}}"/>
+              </Grid>
+             </Expander>
+            </Border>
+            <Border BorderBrush="{DynamicResource Border}" BorderThickness="0,1,0,0">
+             <Expander x:Name="VideoStructureSettings" Header="{DynamicResource Loc.BFCDDBEF3AF50900}" Margin="0" Padding="6">
+              <Grid Margin="0,0,0,8" Grid.IsSharedSizeScope="True"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+               <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+               <TextBlock Text="{DynamicResource Loc.380E65DCB8CD4894}" Style="{StaticResource CodecFieldLabel}"/><TextBox x:Name="VideoGopInput" Grid.Row="1" Text="{Binding SelectedMedia.Options.Video.Gop,UpdateSourceTrigger=PropertyChanged,ValidatesOnExceptions=True}"/>
+               <TextBlock Grid.Row="2" Text="{DynamicResource Loc.3DE2B6BDF8236B18}" FontSize="11" Foreground="{DynamicResource Muted}" Margin="0,2,0,6"/>
+               <StackPanel Grid.Row="3">
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="16"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><Grid.RowDefinitions><RowDefinition Height="Auto" SharedSizeGroup="StructureDetailLabels"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                 <TextBlock Text="{DynamicResource Loc.903A5D3C1586AA3E}" Style="{StaticResource CodecFieldLabel}"/><TextBox x:Name="VideoBFramesInput" Grid.Row="1" Text="{Binding SelectedMedia.Options.Video.BFrames,UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{DynamicResource Loc.903A5D3C1586AA3E}"/>
+                 <TextBlock Grid.Column="2" Text="{DynamicResource Loc.5D2B4B924814CC3B}" Style="{StaticResource CodecFieldLabel}"/><TextBox x:Name="VideoReferencesInput" Grid.Row="1" Grid.Column="2" Text="{Binding SelectedMedia.Options.Video.References,UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{DynamicResource Loc.5D2B4B924814CC3B}"/>
+                </Grid>
+               </StackPanel>
+               <TextBlock Grid.Column="2" Text="{DynamicResource Loc.CABA111CF1E3EBBD}" Style="{StaticResource CodecFieldLabel}"/><TextBox x:Name="VideoMaxRateInput" Grid.Row="1" Grid.Column="2" Text="{Binding SelectedMedia.Options.Video.MaxRateKbps,UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{DynamicResource Loc.CABA111CF1E3EBBD}"/>
+               <Grid Grid.Row="3" Grid.Column="2"><Grid.RowDefinitions><RowDefinition Height="Auto" SharedSizeGroup="StructureDetailLabels"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                <TextBlock Text="{DynamicResource Loc.2C5D3FAAF9BF30FD}" Style="{StaticResource CodecFieldLabel}"/><TextBox x:Name="VideoBufferInput" Grid.Row="1" VerticalAlignment="Top" Text="{Binding SelectedMedia.Options.Video.BufferKbps,UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{DynamicResource Loc.2C5D3FAAF9BF30FD}"/>
+               </Grid>
+              </Grid>
+             </Expander>
+            </Border>
+            <Border BorderBrush="{DynamicResource Border}" BorderThickness="0,1,0,0">
+             <Expander x:Name="VideoExecutionSettings" Header="{DynamicResource Loc.1DCB6412A5007F09}" Margin="0" Padding="6">
+              <StackPanel Margin="0,0,0,8">
+               <Grid x:Name="SoftwareThreadSettings" Visibility="{Binding SelectedMedia.Options.Video.CanControlThreads,Converter={StaticResource BoolVisibility},FallbackValue=Collapsed}">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                <TextBlock Grid.ColumnSpan="3" Text="{DynamicResource Loc.9BE538A92CA5C0C7}" Foreground="{DynamicResource Accent}" Margin="0,8,0,0"/>
+                <TextBlock Grid.Row="1" Text="{DynamicResource Loc.2650168BB8532171}" Style="{StaticResource CodecFieldLabel}"/><ComboBox x:Name="ThreadModeSelector" Grid.Row="2" ItemsSource="{x:Static local:MainViewModel.ThreadModes}" ItemTemplate="{StaticResource LocalizedItemTemplate}" SelectedItem="{Binding SelectedMedia.Options.Video.ThreadMode}"/>
+                <TextBlock Grid.Row="1" Grid.Column="2" Text="{DynamicResource Loc.C6FF4E645437CAE6}" Style="{StaticResource CodecFieldLabel}" Visibility="{Binding SelectedMedia.Options.Video.CanSetThreadCount,Converter={StaticResource BoolVisibility},FallbackValue=Collapsed}"/>
+                <TextBox x:Name="ThreadCountInput" Grid.Row="2" Grid.Column="2" Text="{Binding SelectedMedia.Options.Video.ThreadCount,UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding SelectedMedia.Options.Video.CanSetThreadCount,FallbackValue=False}" Visibility="{Binding SelectedMedia.Options.Video.CanSetThreadCount,Converter={StaticResource BoolVisibility},FallbackValue=Collapsed}"/>
+                <TextBlock Grid.Row="1" Grid.Column="2" Text="{DynamicResource Loc.60D7BD3CA29D6508}" Style="{StaticResource CodecFieldLabel}" Visibility="{Binding SelectedMedia.Options.Video.CanSetThreadPercent,Converter={StaticResource BoolVisibility},FallbackValue=Collapsed}"/>
+                <TextBox x:Name="ThreadPercentInput" Grid.Row="2" Grid.Column="2" Text="{Binding SelectedMedia.Options.Video.ThreadPercent,UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding SelectedMedia.Options.Video.CanSetThreadPercent,FallbackValue=False}" Visibility="{Binding SelectedMedia.Options.Video.CanSetThreadPercent,Converter={StaticResource BoolVisibility},FallbackValue=Collapsed}"/>
+                <TextBlock Grid.Row="3" Grid.ColumnSpan="3" Text="{Binding ThreadControlDescription}" Foreground="{DynamicResource Muted}" FontSize="11" Margin="0,3,0,0"/>
+               </Grid>
+               <Grid x:Name="SvtAdvancedSettings" Visibility="{Binding SelectedMedia.Options.Video.IsSvtAv1,Converter={StaticResource BoolVisibility},FallbackValue=Collapsed}">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                <TextBlock Grid.ColumnSpan="3" Text="{DynamicResource Loc.F6759DF759796710}" Foreground="{DynamicResource Accent}" Margin="0,8,0,0"/>
+                <TextBlock Grid.Row="1" Text="{DynamicResource Loc.1EB17F817DC35D90}" Style="{StaticResource CodecFieldLabel}"/>
+                <ComboBox x:Name="SvtParallelismSelector" Grid.Row="2" ItemsSource="{x:Static local:MainViewModel.SvtParallelismChoices}" SelectedValuePath="Value" SelectedValue="{Binding SelectedMedia.Options.Video.SvtParallelism,UpdateSourceTrigger=PropertyChanged}"><ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{local:TranslatedValue Path=Label}"/></DataTemplate></ComboBox.ItemTemplate></ComboBox>
+                <TextBlock Grid.Row="3" Text="{Binding ThreadControlDescription}" Foreground="{DynamicResource Muted}" FontSize="11" Margin="0,3,0,0"/>
+                <TextBlock Grid.Row="1" Grid.Column="2" Text="{DynamicResource Loc.31D6B49D7B118B13}" Style="{StaticResource CodecFieldLabel}"/>
+                <ComboBox x:Name="SvtTuneSelector" Grid.Row="2" Grid.Column="2" ItemsSource="{x:Static local:MainViewModel.SvtTuneChoices}" SelectedValuePath="Value" SelectedValue="{Binding SelectedMedia.Options.Video.SvtTune,UpdateSourceTrigger=PropertyChanged}"><ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{local:TranslatedValue Path=Label}"/></DataTemplate></ComboBox.ItemTemplate></ComboBox>
+                <TextBlock Grid.Row="4" Text="{DynamicResource Loc.B2F14EB0B7BE465D}" Style="{StaticResource CodecFieldLabel}"/>
+                <TextBox x:Name="SvtFilmGrainInput" Grid.Row="5" Text="{Binding SelectedMedia.Options.Video.SvtFilmGrain,UpdateSourceTrigger=PropertyChanged}"/>
+                <TextBlock Grid.Row="6" Text="{DynamicResource Loc.00340FD5CE241AD3}" FontSize="11" Foreground="{DynamicResource Muted}" Margin="0,2,0,0"/>
+                <TextBlock Grid.Row="4" Grid.Column="2" Text="{DynamicResource Loc.140BD5808D75D99E}" Style="{StaticResource CodecFieldLabel}"/>
+                <ComboBox x:Name="SvtDeblockingSelector" Grid.Row="5" Grid.Column="2" ItemsSource="{x:Static local:MainViewModel.SvtDeblockingChoices}" SelectedValuePath="Value" SelectedValue="{Binding SelectedMedia.Options.Video.SvtDeblocking,UpdateSourceTrigger=PropertyChanged}"><ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{local:TranslatedValue Path=Label}"/></DataTemplate></ComboBox.ItemTemplate></ComboBox>
+                <TextBlock Grid.Row="7" Grid.ColumnSpan="3" Text="{DynamicResource Loc.5169F6504528BB34}" Style="{StaticResource CodecFieldLabel}"/>
+                <TextBox x:Name="SvtParametersInput" Grid.Row="8" Grid.ColumnSpan="3" Text="{Binding SelectedMedia.Options.Video.SvtAv1Parameters,UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" local:ButtonHints.UsePreferences="True" ToolTip="tune=0:film-grain=0:enable-dlf=2"/>
+                <TextBlock Grid.Row="9" Grid.ColumnSpan="3" Text="{DynamicResource Loc.4DCBFD7CA4353C03}" FontSize="11" Foreground="{DynamicResource Muted}" Margin="0,2,0,0"/>
+               </Grid>
+               <Grid x:Name="NvencSettings" Visibility="{Binding SelectedMedia.Options.Video.IsNvenc,Converter={StaticResource BoolVisibility},FallbackValue=Collapsed}">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <StackPanel><TextBlock Text="{DynamicResource Loc.3BE11359A5D1CC75}" Style="{StaticResource CodecFieldLabel}"/><TextBox x:Name="VideoGpuInput" Text="{Binding SelectedMedia.Options.Video.GpuIndex,UpdateSourceTrigger=PropertyChanged}"/></StackPanel>
+                <StackPanel Grid.Column="2" Margin="0,10,0,0" VerticalAlignment="Center"><CheckBox Content="{DynamicResource Loc.FACD5684461C3D37}" IsChecked="{Binding SelectedMedia.Options.Video.CudaDecode}"/><CheckBox Content="{DynamicResource Loc.6B17B1F5EDDB1039}" IsChecked="{Binding SelectedMedia.Options.Video.CudaScale}"/></StackPanel>
+               </Grid>
+               <WrapPanel x:Name="EncoderUtilityActions" Margin="0,12,0,0">
+                <Button local:ButtonHints.Key="ExpertOptions" Content="{DynamicResource Loc.C1F8C7040D12FB38}" Command="{Binding ExpertOptionsCommand}"/>
+                <Button local:ButtonHints.Key="ProbeHardware" Content="{DynamicResource Loc.76BECCC479BB730E}" Command="{Binding ProbeHardwareCommand}"/>
+               </WrapPanel>
+               <TextBlock Text="{Binding GpuProbeText}" FontSize="11"/>
+              </StackPanel>
+             </Expander>
+            </Border>
+           </StackPanel>
+          </StackPanel>
+         </ScrollViewer>
+        </TabItem>
+     <TabItem x:Name="AudioSettingsTab" Header="{DynamicResource Loc.BC1B88907D3B748A}">
+      <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel><TextBlock Text="{DynamicResource Loc.BAD006538B1D3750}" Style="{StaticResource Section}"/><TextBlock Text="{DynamicResource Loc.2ED0FA77E0DEBF0A}" Foreground="{DynamicResource Muted}" FontSize="12" Margin="0,0,0,10"/>
+       <ItemsControl ItemsSource="{Binding SelectedMedia.Options.Audio}"><ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="2"/></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate><Expander Margin="0,0,14,0" Header="{Binding SourceSummary}" IsExpanded="True"><StackPanel Margin="4,8">
+        <ComboBox ItemTemplate="{StaticResource LocalizedItemTemplate}" ItemsSource="{x:Static local:MainViewModel.AudioActions}" SelectedItem="{Binding Action}"/>
+        <StackPanel IsEnabled="{Binding CanEncode}"><TextBlock Text="{DynamicResource Loc.3693E7913A44FFCF}" Style="{StaticResource Label}"/><ComboBox ItemsSource="{Binding DataContext.AudioEncoders,RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding Encoder,Converter={StaticResource SelectionValue}}"/>
+         <TextBlock Text="{DynamicResource Loc.5DF460F7625B639D}" Style="{StaticResource Label}"/><ComboBox ItemsSource="{Binding BitrateChoices}" Text="{Binding BitRateKbps,UpdateSourceTrigger=PropertyChanged}" IsEditable="True" IsEnabled="{Binding CanSetBitrate}"/>
+         <TextBlock Text="{Binding QualityDescription}" FontSize="11" Foreground="{DynamicResource Accent}" Margin="0,3,0,7"/>
+         <Expander Header="{DynamicResource Loc.12265B5E19B8904B}"><StackPanel>
+          <TextBlock Text="{DynamicResource Loc.EF1608157E9CA9F0}" Style="{StaticResource Label}"/><TextBox Text="{Binding CompressionLevel,UpdateSourceTrigger=PropertyChanged}"/>
+          <TextBlock Text="{DynamicResource Loc.446FCE82968DE518}" Style="{StaticResource Label}"/><UniformGrid Columns="2"><TextBox Text="{Binding Channels,UpdateSourceTrigger=PropertyChanged}" Margin="0,0,8,5"/><TextBox Text="{Binding SampleRate,UpdateSourceTrigger=PropertyChanged}"/></UniformGrid>
+          <TextBlock Text="{DynamicResource Loc.BC57C5041FAC9E69}" Style="{StaticResource Label}"/><TextBox Text="{Binding ChannelLayout,UpdateSourceTrigger=PropertyChanged}"/>
+          <TextBlock Text="{DynamicResource Loc.B6135B8D0FC3B8D3}" Style="{StaticResource Label}"/><ComboBox ItemsSource="{x:Static local:MainViewModel.AudioModes}" SelectedItem="{Binding BitrateMode,Converter={StaticResource SelectionValue}}"/>
+          <TextBlock Text="{DynamicResource Loc.E657433EDCE5068F}" Style="{StaticResource Label}"/><TextBox Text="{Binding Application,UpdateSourceTrigger=PropertyChanged}"/>
+         </StackPanel></Expander>
+        </StackPanel>
+        <TextBlock Text="{DynamicResource Loc.503238F03291E9F6}" Style="{StaticResource Label}"/><TextBox Text="{Binding Language,UpdateSourceTrigger=PropertyChanged}"/><TextBox Text="{Binding Title,UpdateSourceTrigger=PropertyChanged}"/><CheckBox Content="{DynamicResource Loc.37684BBF7E28F841}" IsChecked="{Binding IsDefault}"/>
+       </StackPanel></Expander></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+      </StackPanel></ScrollViewer>
+     </TabItem>
+     <TabItem x:Name="SubtitleSettingsTab" Header="{DynamicResource Loc.7618F19C5DFAD687}">
+      <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel><TextBlock Text="{DynamicResource Loc.24E389D9DD54EB2A}" Style="{StaticResource Section}"/><TextBlock Text="{DynamicResource Loc.DB99C5D638C688D4}" FontSize="12" Foreground="{DynamicResource Muted}"/>
+       <ItemsControl ItemsSource="{Binding SelectedMedia.Options.Subtitles}"><ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="2"/></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate><Expander Margin="0,0,14,0" Header="{Binding SourceSummary}" IsExpanded="True"><StackPanel Margin="4,8">
+        <ComboBox ItemTemplate="{StaticResource LocalizedItemTemplate}" ItemsSource="{x:Static local:MainViewModel.SubtitleActions}" SelectedItem="{Binding Action}"/>
+        <TextBlock Text="{DynamicResource Loc.72FBEB40A10D558A}" Style="{StaticResource Label}"/><ComboBox ItemsSource="{Binding DataContext.SubtitleEncoders,RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding Encoder,Converter={StaticResource SelectionValue}}"/>
+        <TextBlock Text="{DynamicResource Loc.503238F03291E9F6}" Style="{StaticResource Label}"/><TextBox Text="{Binding Language,UpdateSourceTrigger=PropertyChanged}"/><TextBox Text="{Binding Title,UpdateSourceTrigger=PropertyChanged}"/>
+        <CheckBox Content="{DynamicResource Loc.37684BBF7E28F841}" IsChecked="{Binding IsDefault}"/><CheckBox Content="{DynamicResource Loc.E161D616C97BC158}" IsChecked="{Binding Forced}"/>
+        <Button local:ButtonHints.Key="ExportSubtitle" Content="{DynamicResource Loc.8F6776C06FFF2680}" Command="{Binding DataContext.ExportSubtitleCommand,RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"/>
+       </StackPanel></Expander></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+      </StackPanel></ScrollViewer>
+     </TabItem>
+        <TabItem x:Name="OutputSettingsTab" Header="{DynamicResource Loc.2044D31DFAC71EC7}">
+         <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel MaxWidth="850" HorizontalAlignment="Left">
+       <TextBlock Text="{DynamicResource Loc.2044D31DFAC71EC7}" Style="{StaticResource Section}" Margin="0,14,0,8"/><ComboBox ItemsSource="{x:Static local:MainViewModel.Containers}" SelectedItem="{Binding SelectedMedia.Options.Container,Converter={StaticResource SelectionValue}}"/>
+       <TextBox Text="{Binding SelectedMedia.Options.OutputDirectory,UpdateSourceTrigger=PropertyChanged}" local:ButtonHints.UsePreferences="True" ToolTip="{DynamicResource Loc.3A5F2AC2D5496431}"/><Button local:ButtonHints.Key="SelectOutputFolder" Content="{DynamicResource Loc.F93C45DD372661B8}" Command="{Binding SelectOutputFolderCommand}"/>
+       <TextBlock Text="{DynamicResource Loc.8DBFEEAFB504EAD4}" Style="{StaticResource Label}"/><TextBox x:Name="IndividualFileNamePatternInput" IsEnabled="{Binding CanEditFileNamePattern}" Text="{Binding SelectedMedia.Options.FileNamePattern,UpdateSourceTrigger=PropertyChanged}"/><TextBlock Text="{}{name} · {codec} · {encoder} · {resolution} · {height} · {width} · {quality} · {bitrate} · {speed} · {preset} · {date} · {time} · {fps}" TextWrapping="Wrap" FontSize="10" Foreground="{DynamicResource Muted}"/>
+       <TextBlock Text="{DynamicResource Loc.778A53C32CEA9973}" Style="{StaticResource Label}"/><TextBox x:Name="VideoOutputNamePreview" Text="{Binding OutputFileNamePreview,Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap"/>
+       <CheckBox Content="{DynamicResource Loc.E2180218E58947C6}" IsChecked="{Binding SelectedMedia.Options.AutoAnalyze}"/>
+         </StackPanel></ScrollViewer>
+        </TabItem>
+       </TabControl>
+      </Grid>
+     </TabItem>
+     <TabItem x:Name="MediaInfoTab" Header="{DynamicResource Loc.E074C3318B7D1B0D}"><TextBox Text="{Binding MediaDetails,Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" FontFamily="Consolas" FontSize="12" Background="{DynamicResource Surface}" BorderThickness="0"/></TabItem>
+     <TabItem x:Name="LargeCommandTab" Header="{DynamicResource Loc.C8505B89F048A581}"><local:CommandPreviewControl x:Name="LargeCommandPreview"/></TabItem>
+     <TabItem x:Name="LogTab" Header="{DynamicResource Loc.9C8CC5CFF19DC734}"><DockPanel><Button local:ButtonHints.Key="OpenLogs" DockPanel.Dock="Bottom" Content="{DynamicResource Loc.0B4EFC2418E13AED}" Command="{Binding OpenLogsCommand}"/><TextBox Text="{Binding LogText,Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" FontFamily="Consolas" FontSize="11"/></DockPanel></TabItem>
+    </TabControl>
+    <Border x:Name="ConversionSummaryCard" Grid.Row="1" Visibility="Collapsed" Background="{DynamicResource Surface}" CornerRadius="6" Padding="12,8" Margin="0,6,0,0">
+     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="3*"/><ColumnDefinition Width="2*"/></Grid.ColumnDefinitions><StackPanel Margin="0,0,16,0"><TextBlock Text="{DynamicResource Loc.64FBF5C21E49AAA0}" Foreground="{DynamicResource Accent}" FontSize="10" FontWeight="SemiBold"/><TextBlock Text="{Binding Conversion}" FontSize="13" FontWeight="SemiBold" Margin="0,3,0,0"/></StackPanel><StackPanel Grid.Column="1"><TextBlock Text="{local:TranslatedValue Path=SelectedMedia.Options.PresetName, Format=Preset}" Foreground="{DynamicResource Muted}" FontSize="11"/><TextBlock Text="{Binding EstimateText}" Foreground="{DynamicResource Muted}" FontSize="11" Margin="0,3,0,0"/></StackPanel></Grid>
+    </Border>
+    <Border x:Name="ValidationSummaryCard" Grid.Row="2" Margin="0,6,0,0" Padding="10,4" MaxHeight="100"><ScrollViewer VerticalScrollBarVisibility="Auto"><TextBlock Text="{Binding ValidationText}" Foreground="{DynamicResource Warning}" FontSize="12"/></ScrollViewer></Border>
+   </Grid>
+  </Grid>
+  <GridSplitter Grid.Row="3" Height="5" HorizontalAlignment="Stretch" Background="Transparent"/>
+  <Grid x:Name="QueueRegion" Grid.Row="4">
+   <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="7"/><ColumnDefinition Width="405" MinWidth="300"/></Grid.ColumnDefinitions>
+   <DockPanel Background="{DynamicResource Surface}">
+    <StackPanel DockPanel.Dock="Top" Margin="10,5">
+     <TextBlock Text="{Binding QueueSummary}" FontWeight="SemiBold" Margin="0,0,0,4"/>
+     <WrapPanel x:Name="QueueActionsPanel">
+      <Button x:Name="StartQueueButton" local:ButtonHints.Key="StartQueue" Content="{DynamicResource Loc.CE2B97F49069BA24}" Command="{Binding StartQueueCommand}" Style="{StaticResource PrimaryButton}" Padding="8,4"/>
+      <Button x:Name="StopQueueButton" local:ButtonHints.Key="StopQueue" Content="{DynamicResource Loc.16465F1570E390BE}" Command="{Binding StopQueueCommand}" Padding="8,4"/>
+      <Button local:ButtonHints.Key="StartSelectedJobs" x:Name="StartSelectedJobsButton" Content="{DynamicResource Loc.65AFA5CD78858F78}" Click="StartSelectedJobs_Click" Padding="8,4"/>
+      <Button local:ButtonHints.Key="CancelJob" Content="{DynamicResource Loc.F7FF1178AF202F6F}" Command="{Binding CancelJobCommand}" Padding="8,4"/>
+      <Button local:ButtonHints.Key="DeferJob" Content="{DynamicResource Loc.F0ADE009AF88F3D6}" Command="{Binding DeferJobCommand}" Padding="8,4"/>
+      <Button local:ButtonHints.Key="EditJob" Content="{DynamicResource Loc.84E45EE7341134DB}" Command="{Binding EditJobCommand}" Padding="8,4"/>
+      <Button local:ButtonHints.Key="RemoveJob" Content="{DynamicResource Loc.3828375A2D45384B}" Command="{Binding RemoveJobCommand}" Padding="8,4"/>
+      <WrapPanel x:Name="QueueParallelControls" Margin="8,0,0,0">
+       <StackPanel Orientation="Horizontal" Margin="0,0,14,0">
+        <TextBlock Text="{DynamicResource Loc.BB027A3A2380DF2F}" VerticalAlignment="Center" Margin="0,0,7,5"/>
+        <ComboBox x:Name="ParallelJobsSelector" Width="64" ItemsSource="{x:Static local:MainViewModel.ParallelJobChoices}" SelectedItem="{Binding ParallelJobLimit}"/>
+       </StackPanel>
+       <StackPanel Orientation="Horizontal" Margin="0,0,16,0">
+        <TextBlock Text="{DynamicResource Loc.8AF63A79111E3689}" VerticalAlignment="Center" Margin="0,0,7,5"/>
+        <ComboBox x:Name="ParallelGpuJobsSelector" Width="64" ItemsSource="{x:Static local:MainViewModel.ParallelGpuJobChoices}" SelectedItem="{Binding ParallelGpuJobLimit}"/>
+       </StackPanel>
+       <CheckBox x:Name="EfficiencyModeCheckBox" Content="{DynamicResource Loc.B82300A520ABE889}" IsChecked="{Binding EncodeEfficiencyMode}" VerticalAlignment="Center" Margin="0,0,0,5" local:ButtonHints.UsePreferences="True" ToolTip="{DynamicResource Loc.62E4AD87DD8ABD1D}"/>
+      </WrapPanel>
+     </WrapPanel>
+    </StackPanel>
+    <ProgressBar DockPanel.Dock="Bottom" Value="{Binding QueueProgress}" Maximum="100"/>
+    <DataGrid x:Name="QueueGrid" ItemsSource="{Binding Jobs}" SelectedItem="{Binding SelectedJob}" AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Extended" SelectionUnit="FullRow" AllowDrop="True" PreviewMouseLeftButtonDown="Queue_MouseDown" MouseMove="Queue_MouseMove" Drop="Queue_Drop" DragOver="Queue_DragOver">
+     <DataGrid.ColumnHeaderStyle><Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}"><Setter Property="ContentTemplate"><Setter.Value><DataTemplate><TextBlock Text="{Binding}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" local:ButtonHints.UsePreferences="True" ToolTip="{Binding}"/></DataTemplate></Setter.Value></Setter></Style></DataGrid.ColumnHeaderStyle>
+     <DataGrid.Columns><DataGridTextColumn Header="{DynamicResource Loc.4EFEF31C02193578}" Width="*" Binding="{Binding Name}"/><DataGridTextColumn Header="{DynamicResource Loc.7252E7CE008587E1}" Width="140" Binding="{local:TranslatedValue Path=PresetName}"/><DataGridTextColumn Header="{DynamicResource Loc.920E413C7D411B61}" Width="110" Binding="{Binding DisplayStatus}"/>
+      <DataGridTemplateColumn Header="{DynamicResource Loc.ABFC3F29BB604493}" Width="120"><DataGridTemplateColumn.CellTemplate><DataTemplate><Grid><ProgressBar Height="5" VerticalAlignment="Bottom" Value="{Binding Progress,TargetNullValue=0}"/><TextBlock Text="{local:TranslatedValue Path=Progress, Format=Percent, NullText=unbekannt}" FontSize="11" VerticalAlignment="Top"/></Grid></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+      <DataGridTextColumn Header="{DynamicResource Loc.214B5B846CF3925F}" Width="SizeToHeader" MinWidth="68" Binding="{Binding Speed}"/><DataGridTextColumn Header="FPS" Width="58" Binding="{Binding Fps,StringFormat=F1}"/><DataGridTextColumn Header="{DynamicResource Loc.38220F561750927B}" Width="SizeToHeader" MinWidth="86" Binding="{Binding Remaining}"/>
+     </DataGrid.Columns>
+     <DataGrid.RowDetailsTemplate><DataTemplate><TextBlock Text="{Binding Conversion}" Margin="12,2,12,10" Foreground="{DynamicResource Accent}" FontSize="12"/></DataTemplate></DataGrid.RowDetailsTemplate>
+    </DataGrid>
+   </DockPanel>
+   <GridSplitter Grid.Column="1" Width="5" Background="Transparent" HorizontalAlignment="Center"/>
+   <DockPanel Grid.Column="2" Background="{DynamicResource Surface}" Margin="0">
+    <WrapPanel DockPanel.Dock="Bottom" Margin="10,5"><Button local:ButtonHints.Key="AnalyzeQuality" Content="{DynamicResource Loc.F4D89E3B130C5FB7}" Command="{Binding AnalyzeQualityCommand}" Padding="8,5"/><Button local:ButtonHints.Key="ShowAnalysis" Content="{DynamicResource Loc.CB13EA105CB2D53F}" Command="{Binding ShowAnalysisCommand}" Padding="8,5"/><Button x:Name="CompareEncodesButton" local:ButtonHints.Key="CompareSelectedEncodes" Content="{DynamicResource Loc.D5FA5CCB11DE722D}" Click="CompareSelectedEncodes_Click" Padding="8,5" Style="{StaticResource PrimaryButton}"/><Button local:ButtonHints.Key="CompareResults" Content="{DynamicResource Loc.0BDB3F7A1148D148}" Command="{Binding CompareResultsCommand}" Padding="8,5"/><Button local:ButtonHints.Key="OpenOutput" Content="{DynamicResource Loc.32BC4EC8BF1A8205}" Command="{Binding OpenOutputCommand}" Padding="8,5"/><Button local:ButtonHints.Key="ShowJobLog" Content="{DynamicResource Loc.895DB718B94AAC72}" Command="{Binding ShowJobLogCommand}" Padding="8,5"/></WrapPanel>
+    <Border x:Name="AnalysisActivityPanel" DockPanel.Dock="Top" Margin="10" Padding="10" Background="{DynamicResource Raised}" CornerRadius="5" Visibility="{Binding SelectedJob.HasAnalysisStatus,Converter={StaticResource BoolVisibility}}">
+     <StackPanel><TextBlock Text="{Binding SelectedJob.AnalysisStatus}" Foreground="{DynamicResource Accent}" FontWeight="SemiBold" FontSize="12"/>
+      <ProgressBar x:Name="AnalysisProgressBar" Height="8" Margin="0,9,0,8" Maximum="100" Value="{Binding SelectedJob.AnalysisProgress,TargetNullValue=0}" IsIndeterminate="{Binding SelectedJob.IsAnalysisIndeterminate}"/>
+      <TextBlock Text="{Binding SelectedJob.AnalysisDetails}" FontSize="11" MaxHeight="80" TextTrimming="CharacterEllipsis"/>
+      <Button local:ButtonHints.Key="CancelQualityAnalysis" Content="{DynamicResource Loc.22DC0A3601E68AD3}" Command="{Binding CancelQualityAnalysisCommand}" HorizontalAlignment="Left" Margin="0,9,0,0" Padding="8,5" Visibility="{Binding SelectedJob.IsAnalyzing,Converter={StaticResource BoolVisibility}}"/>
+     </StackPanel>
+    </Border>
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="12,10"><TextBlock Text="{Binding SelectedJobDetails}" FontSize="11"/></ScrollViewer>
+   </DockPanel>
+  </Grid>
+  <Border Grid.Row="5" Margin="0,10,0,0"><TextBlock Text="{Binding StatusText}" FontSize="12" Foreground="{DynamicResource Accent}" MaxHeight="45" TextTrimming="CharacterEllipsis"/></Border>
+ </Grid>
+</Window>
+
+

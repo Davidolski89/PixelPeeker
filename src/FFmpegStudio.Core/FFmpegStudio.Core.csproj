@@ -1,0 +1,4 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup>
+  <ItemGroup><PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" /><EmbeddedResource Include="Localization/translations.json" /><EmbeddedResource Include="Localization/button-help.json" /></ItemGroup>
+</Project>

@@ -1,0 +1,3 @@
+<Application x:Class="FFmpegStudio.Desktop.App" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:FFmpegStudio.Desktop">
+ <Application.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries><ResourceDictionary Source="Themes/Studio.xaml"/></ResourceDictionary.MergedDictionaries><local:SelectionValueConverter x:Key="SelectionValue"/></ResourceDictionary></Application.Resources>
+</Application>

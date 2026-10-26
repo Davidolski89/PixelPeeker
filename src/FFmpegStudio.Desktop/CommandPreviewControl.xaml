@@ -1,0 +1,16 @@
+<UserControl x:Class="FFmpegStudio.Desktop.CommandPreviewControl" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:FFmpegStudio.Desktop">
+ <DockPanel>
+  <StackPanel DockPanel.Dock="Top">
+   <ComboBox x:Name="CommandSourceSelector" SelectedIndex="{Binding CommandViewIndex,Mode=TwoWay}">
+    <ComboBoxItem Content="{DynamicResource Loc.6BED1CE4CD5B41DA}"/>
+    <ComboBoxItem Content="{DynamicResource Loc.F62F77F441267E72}"/>
+   </ComboBox>
+   <TextBlock x:Name="CommandDescription" Text="{Binding CommandPreviewDescription}" Foreground="{DynamicResource Muted}" FontSize="11" Margin="0,3,0,9" TextWrapping="Wrap"/>
+  </StackPanel>
+  <WrapPanel DockPanel.Dock="Bottom" Margin="0,9,0,0">
+   <Button local:ButtonHints.Key="CopyCommand" Content="{DynamicResource Loc.48DBDE7245851A1D}" Command="{Binding CopyCommandCommand}" Padding="9,5"/>
+   <Button local:ButtonHints.Key="ShowJobLog" Content="{DynamicResource Loc.68D780DBFE1CA39C}" Command="{Binding ShowJobLogCommand}" Padding="9,5" Visibility="{Binding IsJobCommandPreview,Converter={StaticResource BoolVisibility}}"/>
+  </WrapPanel>
+  <TextBox x:Name="CommandPreviewText" Text="{Binding DisplayedCommandText,Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" FontFamily="Consolas" FontSize="12"/>
+ </DockPanel>
+</UserControl>
