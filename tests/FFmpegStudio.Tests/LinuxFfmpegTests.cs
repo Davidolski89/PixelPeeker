@@ -70,6 +70,69 @@ public sealed class LinuxFfmpegTests
     }
 
     [Fact]
+    public async Task Musl_and_old_glibc_do_not_download_static_builds()
+    {
+        var ubuntu = LinuxLibc.Parse("ldd (Ubuntu GLIBC 2.39-0ubuntu8.9) 2.39\nCopyright (C) 2024 Free Software Foundation, Inc.");
+        Assert.Equal(LinuxLibcKind.Glibc, ubuntu.Kind);
+        Assert.Equal(new Version(2, 39), ubuntu.Version);
+        Assert.True(ubuntu.SupportsStaticFfmpeg);
+        var old = LinuxLibc.Parse("ldd (GNU libc) 2.17\nCopyright (C) 2012 Free Software Foundation, Inc.");
+        Assert.Equal(new Version(2, 17), old.Version);
+        Assert.False(old.SupportsStaticFfmpeg);
+        Assert.True(LinuxLibc.Parse(getconf: "glibc 2.28\n").SupportsStaticFfmpeg);
+        Assert.False(LinuxLibc.Parse(getconf: "glibc 2.27\n").SupportsStaticFfmpeg);
+        var alpine = LinuxLibc.Parse(osRelease: "NAME=\"Alpine Linux\"\nID=alpine\n", alpineReleasePresent: true, lddVersion: "musl libc (x86_64)\nVersion 1.2.5\n");
+        Assert.Equal(LinuxLibcKind.Musl, alpine.Kind);
+        Assert.Equal(new Version(1, 2, 5), alpine.Version);
+        Assert.False(alpine.SupportsStaticFfmpeg);
+        Assert.Equal(LinuxLibcKind.Musl, LinuxLibc.Parse(osRelease: "ID=postmarketos\nID_LIKE=\"alpine\"\n").Kind);
+        Assert.Equal(LinuxLibcKind.Musl, LinuxLibc.Parse(dynamicLinkerHint: "\t/lib/ld-musl-x86_64.so.1 (0x7f)\n").Kind);
+        Assert.False(LinuxLibc.Parse().SupportsStaticFfmpeg);
+        var guidance = LinuxLibc.Guidance(alpine);
+        Assert.Contains("apk add ffmpeg", guidance);
+        Assert.Contains("sudo apt install ffmpeg", guidance);
+        Assert.Contains("sudo dnf install ffmpeg", guidance);
+        Assert.Contains("sudo pacman -S ffmpeg", guidance);
+        Assert.Contains("2.17", LinuxLibc.Guidance(old));
+        if (OperatingSystem.IsLinux())
+        {
+            var detected = LinuxLibc.Detect();
+            if (File.Exists("/etc/alpine-release"))
+            {
+                Assert.Equal(LinuxLibcKind.Musl, detected.Kind);
+                Assert.False(detected.SupportsStaticFfmpeg);
+            }
+            else if (detected.Kind == LinuxLibcKind.Glibc)
+                Assert.Equal(detected.Version >= LinuxLibcInfo.MinimumGlibc, detected.SupportsStaticFfmpeg);
+        }
+
+        var root = Path.Combine(Path.GetTempPath(), "ffstudio-libc-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var paths = new AppPaths(root);
+            var distribution = new LinuxFfmpegDistribution(paths, new FFmpegVersionService(paths, new ProcessRunner()), new HttpClient(new BlockingHandler()));
+            distribution.LibcProbe = alpine;
+            Assert.False(distribution.SupportsManagedInstall);
+            var refused = await Assert.ThrowsAsync<PlatformNotSupportedException>(() => distribution.CheckAsync());
+            Assert.Contains("apk add ffmpeg", refused.Message);
+            distribution.LibcProbe = old;
+            Assert.Contains("2.17", distribution.SourceDescription);
+            await Assert.ThrowsAsync<PlatformNotSupportedException>(() => distribution.InstallAsync(new RemoteBuild("refused", "aa", new Uri("https://example.invalid/ffmpeg.tar.xz"))));
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
+
+    private sealed class BlockingHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("static download was attempted");
+    }
+
+    [Fact]
     public async Task Live_static_build_downloads_verifies_and_runs()
     {
         if (Environment.GetEnvironmentVariable("PIXELPEEKER_LIVE_FFMPEG") != "1" || !OperatingSystem.IsLinux()) return;

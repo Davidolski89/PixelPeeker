@@ -29,6 +29,11 @@ public sealed partial class EditorViewModel : ObservableObject
     private readonly IPlaybackSession playback;
     private readonly IEditorPrompts prompts;
     private readonly IUiMarshal ui;
+    private readonly AppPaths paths;
+    private readonly QualityAnalysisService quality;
+    private readonly SubtitleService subtitles;
+    private readonly EncodeComparisonService comparison;
+    private readonly FolderWatchService watcher;
     private readonly List<INotifyPropertyChanged> observed = [];
     private readonly HashSet<string> importing = new(StringComparer.OrdinalIgnoreCase);
     private INotifyCollectionChanged? observedCuts;
@@ -41,7 +46,8 @@ public sealed partial class EditorViewModel : ObservableObject
     public EditorViewModel(SettingsService settings, FFmpegVersionService versions, IFmpegDistribution distribution,
         FFmpegCapabilityService capabilityService, MediaProbeService probe, PreviewService preview, FrameNavigationService frames,
         QueueService queue, QueueStore store, PresetService presets, FFmpegCommandBuilder builder, LoggingService log,
-        IPlaybackSession playback, IEditorPrompts prompts, IUiMarshal ui)
+        IPlaybackSession playback, IEditorPrompts prompts, IUiMarshal ui, AppPaths paths, QualityAnalysisService quality,
+        SubtitleService subtitles, EncodeComparisonService comparison, FolderWatchService watcher)
     {
         this.settings = settings;
         this.versions = versions;
@@ -58,6 +64,22 @@ public sealed partial class EditorViewModel : ObservableObject
         this.playback = playback;
         this.prompts = prompts;
         this.ui = ui;
+        this.paths = paths;
+        this.quality = quality;
+        this.subtitles = subtitles;
+        this.comparison = comparison;
+        this.watcher = watcher;
+        watcher.OnReady = async (path, rule, ct) =>
+        {
+            var active = versions.Active ?? throw new InvalidOperationException(L.T("FFmpeg fehlt für den Ordnerimport."));
+            var media = await probe.ProbeAsync(active, path, ct);
+            if (media.Video is null) throw new InvalidDataException(L.T("Keine Videospur gefunden."));
+            var preset = (await presets.LoadAsync()).FirstOrDefault(item => item.Name == rule.PresetName) ?? throw new InvalidOperationException(L.T("Überwachungspreset nicht gefunden."));
+            var options = PresetService.Apply(preset, media);
+            options.OutputDirectory = rule.OutputFolder;
+            var job = await queue.AddAsync(media, options, ct);
+            if (rule.AutoStart) queue.Start(job);
+        };
         Playback = playback;
         playback.Changed += signal => ui.Invoke(() =>
         {
@@ -87,7 +109,18 @@ public sealed partial class EditorViewModel : ObservableObject
     public static string[] Algorithms { get; } = ["lanczos", "bicubic", "bilinear", "spline", "area", "neighbor"];
     public AppSettings Settings => settings.Current;
     public Capabilities? Capabilities { get; private set; }
-    public string PhaseNote => L.T("Avalonia-Editor. Wiedergabe nutzt die Systembibliothek libvlc. Linux lädt geprüfte statische FFmpeg-Builds. Vergleichsfenster, Qualitätsanalyse und der vollständige Einstellungsdialog bleiben in der Windows-Oberfläche.");
+    public string PhaseNote => L.T("Avalonia-Editor. Wiedergabe nutzt die Systembibliothek libvlc. Linux lädt geprüfte statische FFmpeg-Builds, sofern glibc 2.28 oder neuer verfügbar ist.");
+    public string SettingsLabel => L.T("Einstellungen");
+    public string CompareLabel => L.T("Encodes vergleichen");
+    public string AnalyzeLabel => L.T("Qualitätsanalyse");
+    public string CancelAnalysisLabel => L.T("Analyse abbrechen");
+    public string ExpertLabel => L.T("Expertenoptionen");
+    public string TestEncodeLabel => L.T("Testencode");
+    public string ExportSubtitleLabel => L.T("Untertitel exportieren");
+    public string SystemFfmpegLabel => L.T("System-FFmpeg");
+    public string PreviousFrameLabel => L.T("Vorheriges Bild");
+    public string NextFrameLabel => L.T("Nächstes Bild");
+    public string SubtitleHeading => L.T("Untertitel");
     public string OpenFileLabel => L.T("Datei öffnen");
     public string LibraryHeading => L.T("Bibliothek");
     public string MediaHeading => L.T("Mediendaten");
@@ -114,6 +147,9 @@ public sealed partial class EditorViewModel : ObservableObject
     [ObservableProperty] private double? downloadPercent;
     [ObservableProperty] private double previewSeconds;
     [ObservableProperty] private string? previewPath;
+    [ObservableProperty] private SourceFramePosition? displayedFrame;
+    [ObservableProperty] private double testSeconds = 10;
+    [ObservableProperty] private SubtitleTrackOptions? selectedSubtitle;
     [ObservableProperty] private SourceFramePosition? pendingCutStart;
     [ObservableProperty] private CutRegion? selectedCut;
 
@@ -188,7 +224,8 @@ public sealed partial class EditorViewModel : ObservableObject
             : L.F($"{options.Cuts.Count} Schnittbereiche · verbleibende Dauer ca. {CutTimeline.Duration(info, options):0.###} s");
     public string SelectedJobDetails => SelectedJob is null
         ? L.T("Einen Job auswählen, um Ergebnis, Protokoll und Messwerte zu sehen.")
-        : string.Join(Environment.NewLine, new[] { SelectedJob.Name, SelectedJob.DisplayStatus, SelectedJob.OutputPath, SelectedJob.Error }.Where(part => !string.IsNullOrWhiteSpace(part)));
+        : string.Join(Environment.NewLine, new[] { SelectedJob.Name, SelectedJob.DisplayStatus, SelectedJob.OutputPath, SelectedJob.Error, SelectedJob.AnalysisStatus, SelectedJob.AnalysisDetails }.Where(part => !string.IsNullOrWhiteSpace(part)));
+    public IReadOnlyList<SubtitleTrackOptions> SubtitleTracks => SelectedMedia?.Options?.Subtitles.ToArray() ?? [];
     public bool HasEditableMedia => SelectedMedia?.CanEdit == true;
 
     public async Task InitializeAsync()
@@ -221,6 +258,7 @@ public sealed partial class EditorViewModel : ObservableObject
         settings.Current.Codecs.Normalize();
         settings.Current.Codecs.SeedFromJobs(Jobs);
         initialized = true;
+        RefreshLanguage();
         StatusText = startupError ?? (versions.Active is not null
             ? L.T("Bereit · Dateien oder Ordner in die Bibliothek ziehen.")
             : distribution.SupportsManagedInstall
@@ -228,6 +266,7 @@ public sealed partial class EditorViewModel : ObservableObject
                 : distribution.SourceDescription);
         if (versions.Active is null && settings.Current.AutoInstall && distribution.SupportsManagedInstall)
             await InstallFfmpegAsync();
+        watcher.Start();
     }
 
     [RelayCommand]
@@ -273,6 +312,16 @@ public sealed partial class EditorViewModel : ObservableObject
                     entry = new EditorMedia(file, info, options);
                 }
                 ui.Invoke(() => { Media.Add(entry); SelectedMedia = entry; });
+                if (entry.CanEdit && versions.Active is { } thumbTools && entry.Info is { } thumbInfo)
+                {
+                    try
+                    {
+                        var at = Math.Min(3, Math.Max(0, (thumbInfo.Duration ?? 10) * .1));
+                        entry.ThumbnailPath = await preview.FrameAsync(thumbTools, thumbInfo, at, width: 320, ct: ct);
+                        if (ReferenceEquals(SelectedMedia, entry)) PreviewPath ??= entry.ThumbnailPath;
+                    }
+                    catch (Exception e) when (e is not OperationCanceledException) { log.Write(L.T("Vorschaubild"), e); }
+                }
                 added++;
             }
             catch (Exception e) when (e is not OperationCanceledException)
@@ -306,6 +355,7 @@ public sealed partial class EditorViewModel : ObservableObject
             Observe(options.Video);
             Observe(options.Filters);
             MediaDetails = value.Details;
+            PreviewPath = value.ThumbnailPath;
             var matching = Presets.FirstOrDefault(preset => preset.Name == options.PresetName);
             if (!ReferenceEquals(SelectedPreset, matching)) { selectedPreset = matching; OnPropertyChanged(nameof(SelectedPreset)); }
             PreviewSeconds = Math.Min(3, Math.Max(0, (value.Info?.Duration ?? 10) * .1));
@@ -316,6 +366,8 @@ public sealed partial class EditorViewModel : ObservableObject
             PreviewPath = null;
         }
         OnPropertyChanged(nameof(HasEditableMedia));
+        OnPropertyChanged(nameof(SubtitleTracks));
+        SelectedSubtitle = value?.Options?.Subtitles.FirstOrDefault();
         OnPropertyChanged(nameof(SelectedEncoder));
         OnPropertyChanged(nameof(SelectedContainer));
         OnPropertyChanged(nameof(VideoQuality));
@@ -455,14 +507,21 @@ public sealed partial class EditorViewModel : ObservableObject
         }
     }
 
-    [RelayCommand] private async Task ShowPreviewAsync() => await RunAsync(L.T("Vorschau wird geladen …"), async ct =>
+    [RelayCommand] private Task ShowPreviewAsync() => RunAsync(L.T("Vorschau wird geladen …"), ct => LoadExactFrameAsync(PreviewSeconds, FrameSeek.Nearest, ct));
+    [RelayCommand] private Task PreviousFrameAsync() => RunAsync(L.T("Vorschau wird geladen …"), ct => LoadExactFrameAsync(DisplayedFrame?.Seconds ?? PreviewSeconds, FrameSeek.Previous, ct));
+    [RelayCommand] private Task NextFrameAsync() => RunAsync(L.T("Vorschau wird geladen …"), ct => LoadExactFrameAsync(DisplayedFrame?.Seconds ?? PreviewSeconds, FrameSeek.Next, ct));
+
+    internal async Task LoadExactFrameAsync(double seconds, FrameSeek direction, CancellationToken ct)
     {
-        if (SelectedMedia?.Info is not { } info || versions.Active is not { } tools) throw new InvalidOperationException(L.T("Datei und FFmpeg werden für die Vorschau benötigt."));
-        var frame = await frames.ResolveAsync(tools, info, PreviewSeconds, ct: ct);
-        PreviewPath = await preview.FrameAsync(tools, info, frame.Seconds, exactFrame: frame, ct: ct);
+        if (SelectedMedia?.Info is not { } info || versions.Active is not { } tools)
+            throw new InvalidOperationException(L.T("Datei und FFmpeg werden für die Vorschau benötigt."));
+        var frame = await frames.ResolveAsync(tools, info, seconds, direction, ct);
+        var width = Math.Min(1280, info.Video?.Width ?? 1280);
+        PreviewPath = await preview.FrameAsync(tools, info, frame.Seconds, width: width, exactFrame: frame, ct: ct);
+        DisplayedFrame = frame;
         PreviewSeconds = frame.Seconds;
-        StatusText = L.F($"Vorschau bei {frame.Seconds:0.000} s.");
-    });
+        StatusText = L.F($"Geladenes Quellbild: {frame.Seconds:0.000000} s");
+    }
 
     [RelayCommand] private async Task MarkCutStartAsync()
     {

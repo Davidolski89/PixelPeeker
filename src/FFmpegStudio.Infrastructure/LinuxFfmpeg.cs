@@ -119,11 +119,21 @@ public sealed class LinuxFfmpegDistribution(AppPaths paths, FFmpegVersionService
 {
     private readonly SemaphoreSlim gate = new(1);
     private readonly Architecture architecture = RuntimeInformation.ProcessArchitecture;
+    private LinuxLibcInfo? libc;
 
-    public bool SupportsManagedInstall => OperatingSystem.IsLinux() && LinuxFfmpegSources.IsSupported(architecture);
+    /// <summary>Detected C library. Tests replace it so musl and old glibc never reach the network.</summary>
+    public LinuxLibcInfo LibcProbe
+    {
+        get => libc ??= LinuxLibc.Detect();
+        set => libc = value;
+    }
+
+    public bool SupportsManagedInstall => OperatingSystem.IsLinux() && LinuxFfmpegSources.IsSupported(architecture) && LibcProbe.SupportsStaticFfmpeg;
     public string SourceDescription => SupportsManagedInstall
         ? L.T("Verwaltete Installation: BtbN/FFmpeg-Builds, statische GPL-Builds für Linux x64 und arm64, SHA-256. Ersatzquelle: John Van Sickle, statische GPL-Builds, MD5.")
-        : L.T("Verwaltete Linux-Installation gibt es für x64 und arm64. Auf diesem System ist sie nicht verfügbar.");
+        : !OperatingSystem.IsLinux() || !LinuxFfmpegSources.IsSupported(architecture)
+            ? L.T("Verwaltete Linux-Installation gibt es für x64 und arm64. Auf diesem System ist sie nicht verfügbar.")
+            : LinuxLibc.Guidance(LibcProbe);
 
     public async Task<RemoteBuild> CheckAsync(CancellationToken ct = default)
     {

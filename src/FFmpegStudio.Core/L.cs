@@ -52,3 +52,13 @@ public static class L
         return JsonSerializer.Deserialize<Dictionary<string,string[]>>(stream)!;
     }
 }
+
+public sealed record UiLanguage(string Code, string Name)
+{
+    public override string ToString() => Name;
+    public static IReadOnlyList<UiLanguage> All { get; } =
+    [
+        new("de", "Deutsch"), new("en", "English"), new("pl", "Polski"), new("fr", "Français"),
+        new("es", "Español"), new("tr", "Türkçe"), new("zh", "简体中文"), new("ru", "Русский"), new("ja", "日本語")
+    ];
+}

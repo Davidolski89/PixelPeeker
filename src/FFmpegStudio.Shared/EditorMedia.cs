@@ -14,6 +14,7 @@ public sealed partial class EditorMedia : ObservableObject
 
     public string Path { get; }
     public MediaInfo? Info { get; }
+    [ObservableProperty] private string? thumbnailPath;
     [ObservableProperty] private EncodingOptions? options;
     public string Name => Info?.Name ?? System.IO.Path.GetFileName(Path);
     public string Summary => Info?.Summary ?? (File.Exists(Path) ? $"{new FileInfo(Path).Length / 1048576d:0.0} MiB" : L.T("Mediendatei nicht gefunden."));

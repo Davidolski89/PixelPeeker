@@ -40,6 +40,13 @@ public sealed class MainWindowTests
             Assert.False(string.IsNullOrWhiteSpace(note!.Text));
             Assert.Contains("FFmpeg", note.Text);
             Assert.Contains("libvlc", note.Text);
+            Assert.NotNull(window.FindControl<Button>("SettingsButton"));
+            Assert.NotNull(window.FindControl<Button>("CompareButton"));
+            Assert.NotNull(window.FindControl<Button>("AnalyzeButton"));
+            Assert.NotNull(window.FindControl<Button>("ExpertButton"));
+            Assert.NotNull(window.FindControl<Button>("TestEncodeButton"));
+            Assert.NotNull(window.FindControl<Button>("ExportSubtitleButton"));
+            Assert.NotNull(window.FindControl<Button>("PreviousFrameButton"));
             var file = Path.Combine(root, "clip.mkv");
             await File.WriteAllBytesAsync(file, [9, 8, 7, 6]);
             await vm.ImportPathsAsync([file]);

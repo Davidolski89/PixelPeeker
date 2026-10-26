@@ -1,7 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
-using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using FFmpegStudio.Core;
@@ -18,10 +17,19 @@ public partial class MainWindow : Window
         DataContextChanged += (_, _) => AttachViewModel();
     }
 
+    private EditorViewModel? attached;
+
     private void AttachViewModel()
     {
-        if (DataContext is not EditorViewModel vm) return;
+        if (DataContext is not EditorViewModel vm || ReferenceEquals(attached, vm)) return;
+        attached = vm;
         vm.PreparePlaybackSurface = PreparePlaybackAsync;
+        vm.EditSettingsRequested = draft => StudioDialogs.EditSettingsAsync(this, draft);
+        vm.EditExpertRequested = (encoder, current) => StudioDialogs.EditExpertAsync(this, encoder, current);
+        vm.TestEncodeNoticeRequested = job => StudioDialogs.TestEncodeNoticeAsync(this, job);
+        vm.ComparisonRequested = session => StudioDialogs.ShowComparisonAsync(this, session, () => vm.ProbeComparisonFileAsync());
+        vm.AnalysisRequested = result => StudioDialogs.ShowAnalysisAsync(this, result);
+        vm.ThemeChanged += _ => (global::Avalonia.Application.Current as App)?.ApplyTheme(vm.Settings);
         vm.PropertyChanged += (_, change) =>
         {
             if (change.PropertyName == nameof(EditorViewModel.PreviewPath))
@@ -78,15 +86,6 @@ public partial class MainWindow : Window
 
     private void ShowPreview()
     {
-        if (DataContext is not EditorViewModel { PreviewPath: { } path } || !File.Exists(path))
-        {
-            PreviewImage.Source = null;
-            return;
-        }
-        using var input = File.OpenRead(path);
-        using var copy = new MemoryStream();
-        input.CopyTo(copy);
-        copy.Position = 0;
-        PreviewImage.Source = new Bitmap(copy);
+        PreviewImage.Source = PreviewBitmaps.Load(DataContext is EditorViewModel vm ? vm.PreviewPath : null);
     }
 }

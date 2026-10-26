@@ -502,9 +502,7 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand] private Task TestEncodeAsync() => RunUiAsync(L.T("Testencode vorbereiten …"),async ct=>
     {
         var item=SelectedMedia??throw new InvalidOperationException(L.T("Datei auswählen."));
-        if(TestSeconds<=0||TestSeconds>120) throw new ArgumentException(L.T("Testlänge zwischen 0 und 120 Sekunden wählen."));
-        var o=Json.Clone(item.Options); o.ClipStart=PreviewSeconds; o.ClipDuration=Math.Min(TestSeconds,(item.Info.Duration??double.MaxValue)-PreviewSeconds);
-        o.OutputDirectory=Path.Combine(paths.Cache,"test-encodes"); o.FileNamePattern="{name}_Test_{codec}";
+        var o=TestEncodePlan.Create(item.Options,PreviewSeconds,TestSeconds,item.Info.Duration,paths.Cache);
         var job=await queue.AddAsync(item.Info,o,ct);queue.Start(job);StatusText=TestEncodeNotificationWindow.StatusMessage(job);
         if(Settings.ShowTestEncodeNotification)
         {
@@ -536,56 +534,28 @@ public sealed partial class MainViewModel : ObservableObject
         using var cancellation=CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
         var active=new AnalysisOperation(cancellation,new(TaskCreationOptions.RunContinuationsAsynchronously));
         analysisOperations.Add(job.Id,active);
-        job.AnalysisProgress=null; job.AnalysisStatus=L.T("Qualitätsanalyse wird gestartet …");
-        job.AnalysisDetails=L.T("Quelle und Ausgabedatei werden verglichen. Die Analyse besteht aus mehreren Durchläufen.");
-        job.IsAnalyzing=true; RefreshAnalysisCommands();
-        var clock=Stopwatch.StartNew();
         try
         {
-            await quality.AnalyzeAsync(job,new Progress<QualityAnalysisProgress>(p=>
+            var outcome=await QualityAnalysisRun.ExecuteAsync(job,quality,p=>
             {
-                if(cancellation.IsCancellationRequested||!analysisOperations.TryGetValue(job.Id,out var current)||!ReferenceEquals(current,active)) return;
-                job.AnalysisStatus=p.Stage; job.AnalysisProgress=p.Percent;
-                job.AnalysisDetails=DescribeAnalysisProgress(p);
                 if(!IsBusy) StatusText=L.F($"Qualitätsanalyse · {job.Name} · {p.Stage}");
-            }),cancellation.Token);
-            job.AnalysisProgress=100; job.AnalysisStatus=L.T("Qualitätsanalyse abgeschlossen");
-            static string N(double? value)=>value?.ToString("0.###")??L.T("nicht verfügbar");
-            var result=job.Analysis!;
-            job.AnalysisDetails=L.F($"VMAF {N(result.Vmaf)} · SSIM {N(result.Ssim)} · PSNR {N(result.Psnr)} dB\nDauer {FormatAnalysisTime(clock.Elapsed)} · Ergebnisse gespeichert.");
+            },e=>log.Write(L.F($"Qualitätsanalyse fehlgeschlagen: {job.Name}"),e),cancellation.Token,
+                ()=>!cancellation.IsCancellationRequested&&analysisOperations.TryGetValue(job.Id,out var current)&&ReferenceEquals(current,active),
+                RefreshAnalysisCommands);
             OnPropertyChanged(nameof(SelectedJobDetails));
-            if(!IsBusy) StatusText=L.F($"Qualitätsanalyse abgeschlossen · {job.Name}");
-            if(showResult&&!lifetime.IsCancellationRequested)
-                new AnalysisWindow(result) {Owner=System.Windows.Application.Current.MainWindow}.Show();
-        }
-        catch(OperationCanceledException)
-        {
-            job.AnalysisProgress=null; job.AnalysisStatus=L.T("Qualitätsanalyse abgebrochen");
-            job.AnalysisDetails=L.F($"Beendet nach {FormatAnalysisTime(clock.Elapsed)}. Vorhandene Messwerte bleiben verfügbar.");
-        }
-        catch(Exception e)
-        {
-            job.AnalysisProgress=null; job.AnalysisStatus=L.T("Qualitätsanalyse fehlgeschlagen");
-            job.AnalysisDetails=e.Message.Length>4000?e.Message[..4000]:e.Message;
-            log.Write(L.F($"Qualitätsanalyse fehlgeschlagen: {job.Name}"),e);
-            if(!IsBusy) StatusText=L.F($"Qualitätsanalyse fehlgeschlagen · {job.Name}");
+            if(outcome==QualityAnalysisOutcome.Completed)
+            {
+                if(!IsBusy) StatusText=L.F($"Qualitätsanalyse abgeschlossen · {job.Name}");
+                if(showResult&&!lifetime.IsCancellationRequested&&job.Analysis is {} result)
+                    new AnalysisWindow(result) {Owner=System.Windows.Application.Current.MainWindow}.Show();
+            }
+            else if(outcome==QualityAnalysisOutcome.Failed&&!IsBusy) StatusText=L.F($"Qualitätsanalyse fehlgeschlagen · {job.Name}");
         }
         finally
         {
-            job.IsAnalyzing=false; analysisOperations.Remove(job.Id); RefreshAnalysisCommands();
+            analysisOperations.Remove(job.Id); RefreshAnalysisCommands();
             active.Completion.TrySetResult();
         }
-    }
-    private static string FormatAnalysisTime(TimeSpan value) => $"{(int)value.TotalHours:00}:{value.Minutes:00}:{value.Seconds:00}";
-    private static string DescribeAnalysisProgress(QualityAnalysisProgress p)
-    {
-        var parts=new List<string>();
-        if(p.Percent.HasValue) parts.Add(L.F($"{p.Percent:0.0} % im aktuellen Durchlauf"));
-        if(p.Seconds.HasValue) parts.Add(p.Duration.HasValue?$"{p.Seconds:0.0} / {p.Duration:0.0} s":L.F($"{p.Seconds:0.0} s verarbeitet"));
-        if(p.Speed.HasValue) parts.Add($"{p.Speed:0.00}×");
-        parts.Add(L.F($"Laufzeit {FormatAnalysisTime(p.Elapsed)}"));
-        if(p.Remaining.HasValue) parts.Add(L.F($"Rest im Durchlauf ca. {FormatAnalysisTime(p.Remaining.Value)}"));
-        return string.Join(" · ",parts);
     }
     [RelayCommand] private void ShowAnalysis()
     {
@@ -691,19 +661,8 @@ public sealed partial class MainViewModel : ObservableObject
         await RunUiAsync(L.T("Einstellungen speichern …"),async _=>
         {
             foreach(var rule in dialog.Result.WatchFolders.Where(r=>r.Enabled)) FolderWatchService.ValidateRule(rule);
-            var edited=dialog.Result; Settings.ThemeId=ThemeCatalog.Resolve(edited.ThemeId,edited.DarkMode).Id;
-            Settings.DarkMode=ThemeCatalog.Resolve(Settings.ThemeId).IsDark; Settings.RecursiveImport=edited.RecursiveImport;
-            Settings.TooltipsEnabled=edited.TooltipsEnabled;Settings.TooltipDelaySeconds=TooltipTiming.Normalize(edited.TooltipDelaySeconds);
-            Settings.ShowTestEncodeNotification=edited.ShowTestEncodeNotification;
-            Settings.FileNaming=Json.Clone(edited.FileNaming);OnPropertyChanged(nameof(CanEditFileNamePattern));
-            ButtonHints.Apply(Settings);
-            Settings.AutoInstall=edited.AutoInstall; Settings.AutoUpdate=edited.AutoUpdate; Settings.CheckUpdates=edited.CheckUpdates;
-            Settings.UpdateIntervalHours=Math.Clamp(edited.UpdateIntervalHours,1,720); Settings.ParallelJobs=Math.Clamp(edited.ParallelJobs,1,16);
-            Settings.ParallelGpuJobs=Math.Clamp(edited.ParallelGpuJobs,1,8); Settings.CacheLimitMiB=Math.Clamp(edited.CacheLimitMiB,32,16384);
-            Settings.EfficiencyMode=edited.EfficiencyMode;RefreshExecutionSettings();
-            Settings.DefaultOutputDirectory=edited.DefaultOutputDirectory; Settings.WatchFolders=edited.WatchFolders;
-            Settings.CompletionAction=edited.CompletionAction;
-            Settings.Language=L.Normalize(edited.Language);
+            var edited=dialog.Result; SettingsTransfer.Apply(Settings,edited); OnPropertyChanged(nameof(CanEditFileNamePattern));
+            ButtonHints.Apply(Settings); RefreshExecutionSettings();
             await settings.SaveAsync(); App.ApplyLanguage(Settings.Language); App.ApplyTheme(Settings.ThemeId); StatusText=L.T("Einstellungen gespeichert."); OnPropertyChanged(nameof(Settings));RefreshSummary();
         });
     }

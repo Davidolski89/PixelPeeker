@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
 using FFmpegStudio.Core;
+using FFmpegStudio.Shared;
 
 namespace FFmpegStudio.Desktop;
 
@@ -11,12 +12,7 @@ public sealed class TestEncodeNotificationWindow : Window
     private readonly CheckBox suppress=new(){Name="DontShowAgainInput"};
     private readonly TextBlock message=new(){Name="TestEncodeStatus",FontSize=16,FontWeight=FontWeights.SemiBold,TextWrapping=TextWrapping.Wrap,Margin=new Thickness(0,0,0,12)};
     public bool DontShowAgain=>suppress.IsChecked==true;
-    public static string StatusMessage(EncodingJob job)=>job.Status switch
-    {
-        JobStatus.Wartend=>L.T("Der Testencode wartet in der Queue und startet automatisch, sobald ein Platz frei ist."),
-        JobStatus.Läuft=>L.T("Der Testencode wird gerade encodiert."),
-        _=>L.T("Testencode")+" · "+L.EnumText(job.Status)
-    };
+    public static string StatusMessage(EncodingJob job) => TestEncodeNotice.StatusMessage(job);
     public TestEncodeNotificationWindow(EncodingJob job)
     {
         Ui.Prepare(this,L.T("Testencode"),600,260);MinHeight=200;ResizeMode=ResizeMode.NoResize;SizeToContent=SizeToContent.Height;ShowInTaskbar=false;

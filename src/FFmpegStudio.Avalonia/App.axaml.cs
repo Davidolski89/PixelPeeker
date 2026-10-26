@@ -80,6 +80,12 @@ public partial class App : Application
         Dispatcher.UIThread.Post(() => desktop.Shutdown(), DispatcherPriority.Background);
     }
 
+    public void ApplyTheme(AppSettings settings)
+    {
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop && desktop.MainWindow is MainWindow window)
+            ApplyTheme(settings, window);
+    }
+
     private void ApplyTheme(AppSettings settings, MainWindow window)
     {
         var theme = ThemeCatalog.Resolve(settings.ThemeId, settings.DarkMode);

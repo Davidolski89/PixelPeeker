@@ -6,7 +6,8 @@
 - Die Avalonia-Oberfläche bindet an `EditorViewModel`: Encoder, Qualität, Preset, Container, Skalierung, Crop, Schnitte, Presets, Befehlsvorschau und Queue-Befehle. Dateidialoge und Rückfragen bleiben in der jeweiligen Oberfläche. Die WPF-Anwendung ruft dieselbe Encoder-, Schnitt- und Befehlsvorschau-Logik auf.
 - Wiedergabe läuft über `IPlaybackSession`. Windows behält LibVLCSharp.WPF und das mitgelieferte LibVLC. Avalonia nutzt LibVLCSharp mit der Systembibliothek libvlc. LibVLCSharp.Avalonia entfällt, weil es Avalonia 11 verlangt.
 - Linux x64 und arm64 laden einen statischen GPL-Build von BtbN/FFmpeg-Builds (angeheftetes Autobuild, SHA-256). John Van Sickle ist die Ersatzquelle mit MD5. Ein ffmpeg/ffprobe im PATH kann stattdessen gewählt werden. Die Windows-Quelle bleibt gyan.dev.
-- Vergleichsfenster, Qualitätsanalyse und der vollständige Einstellungsdialog bleiben in der Windows-Oberfläche.
+- Statische Linux-Builds werden nur bei glibc 2.28 oder neuer geladen. musl (zum Beispiel Alpine) und älteres glibc bekommen keinen Download, sondern einen Hinweis auf `apk add ffmpeg` sowie apt, dnf und pacman. Danach kann das System-FFmpeg gewählt werden.
+- Die Avalonia-Oberfläche übernimmt Encode-Vergleich, Qualitätsanalyse, den Einstellungsdialog, Pause auf das exakte Quellbild, Vorschaubilder, Expertenoptionen, Untertitelexport und den Testencode-Hinweis. Dieselbe Planungs- und Einstellungslogik nutzt auch die Windows-Oberfläche. Der WPF-Vergleich behält Filmstreifen und die genaue Bildfläche; die Qualitätsgrafik unter Windows bleibt die ausführlichere Ansicht.
 
 ## 0.10.39 – 24. Oktober 2026
 
