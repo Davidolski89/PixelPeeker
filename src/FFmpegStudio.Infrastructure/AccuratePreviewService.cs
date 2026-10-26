@@ -118,7 +118,7 @@ public sealed class AccuratePreviewService(FrameNavigationService navigation) : 
         }
         private async Task PumpAsync(Toolchain tools,MediaInfo media,string filter,int? width,int? height)
         {
-            Process? process=null;Task? stderr=null;WindowsProcessJob? job=null;
+            Process? process=null;Task? stderr=null;IDisposable? job=null;
             var timestamps=Channel.CreateBounded<long>(new BoundedChannelOptions(64){SingleReader=true,SingleWriter=true,FullMode=BoundedChannelFullMode.Wait});
             var messages=new StringBuilder();
             try
@@ -136,7 +136,7 @@ public sealed class AccuratePreviewService(FrameNavigationService navigation) : 
                 foreach(var arg in args)start.ArgumentList.Add(arg);
                 lifetime.Token.ThrowIfCancellationRequested();process=new(){StartInfo=start};
                 if(!process.Start())throw new InvalidOperationException(L.T("Frame-Vorschau"));
-                job=WindowsProcessJob.TryAttach(process);
+                job=ProcessControls.ForCurrentPlatform().AttachLifetime(process);
                 using var kill=lifetime.Token.Register(()=>Kill(process));
                 lock(sync)running=true;
                 stderr=ReadErrorsAsync();

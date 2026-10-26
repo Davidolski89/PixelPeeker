@@ -9,6 +9,7 @@ using System.Windows.Media;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 using FFmpegStudio.Core;
+using FFmpegStudio.Shared;
 using FFmpegStudio.Infrastructure;
 
 namespace FFmpegStudio.Desktop;
@@ -132,7 +133,7 @@ public sealed class EncoderOptionsWindow : Window
         buttons.Children.Add(Ui.Button(L.T("Abbrechen"),(_,_)=>DialogResult=false));
         var stack=new StackPanel();root.Children.Add(new ScrollViewer{Content=stack,VerticalScrollBarVisibility=ScrollBarVisibility.Auto});
         stack.Children.Add(new TextBlock{Text=L.T("Tatsächlich erkannte Optionen dieser FFmpeg-Version. Leere Felder verwenden den Encoderstandard. Bereits im einfachen Modus gesetzte Optionen hier nicht doppelt setzen."),Margin=new Thickness(0,0,0,15)});
-        var managed=new HashSet<string>{"preset","tune","profile","level","gpu","cq","qp","crf","rc","cpu-used","speed"};
+        var managed=new HashSet<string>(EncoderOptionEditor.Managed);
         foreach(var option in encoder.Options??[])
         {
             if(managed.Contains(option.Name))continue;

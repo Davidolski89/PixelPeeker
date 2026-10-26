@@ -1,13 +1,12 @@
-using System.Globalization;
 using System.IO;
 using System.Text;
-using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using FFmpegStudio.Core;
+using FFmpegStudio.Shared;
 using Microsoft.Win32;
 
 namespace FFmpegStudio.Desktop;
@@ -30,15 +29,12 @@ public sealed class AnalysisWindow : Window
         {
             var dialog=new SaveFileDialog{Filter="CSV|*.csv",FileName="Qualitaetsverlauf.csv"};
             if(dialog.ShowDialog()!=true)return;
-            var csv=new StringBuilder("seconds;vmaf;ssim;psnr\n");
-            static string N(double? d)=>d?.ToString("R",CultureInfo.InvariantCulture)??"";
-            foreach(var f in result.Frames)csv.AppendLine($"{N(f.Seconds)};{N(f.Vmaf)};{N(f.Ssim)};{N(f.Psnr)}");
-            await File.WriteAllTextAsync(dialog.FileName,csv.ToString(),Encoding.UTF8);
+            await File.WriteAllTextAsync(dialog.FileName,QualityReport.Csv(result),Encoding.UTF8);
         }));
         buttons.Children.Add(Ui.Button(L.T("JSON exportieren"),async(_,_)=>
         {
             var dialog=new SaveFileDialog{Filter="JSON|*.json",FileName="Analyse.json"};
-            if(dialog.ShowDialog()==true)await File.WriteAllTextAsync(dialog.FileName,JsonSerializer.Serialize(result,Json.Options));
+            if(dialog.ShowDialog()==true)await File.WriteAllTextAsync(dialog.FileName,QualityReport.JsonText(result));
         }));
         var grid=new DataGrid{AutoGenerateColumns=false,IsReadOnly=true,RowHeight=30};
         foreach(var (title,path) in new[]{(L.T("Zeit (s)"),nameof(QualityFrame.Seconds)),("VMAF",nameof(QualityFrame.Vmaf)),("SSIM",nameof(QualityFrame.Ssim)),("PSNR (dB)",nameof(QualityFrame.Psnr))})

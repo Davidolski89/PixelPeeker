@@ -2,8 +2,6 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
-using System.Text;
-using System.Text.Json;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -12,6 +10,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FFmpegStudio.Core;
 using FFmpegStudio.Infrastructure;
+using FFmpegStudio.Shared;
 using Microsoft.Win32;
 
 namespace FFmpegStudio.Desktop;
@@ -327,7 +326,7 @@ public sealed partial class MainViewModel : ObservableObject
             settingPreviewPosition=true;
             try{PreviewMaximum=Math.Max(.1,value.Info.Duration??100); PreviewSeconds=Math.Min(3,PreviewMaximum*.1);}
             finally{settingPreviewPosition=false;}
-            PreviewImage=value.Thumbnail; MediaDetails=BuildMediaDetails(value.Info);
+            PreviewImage=value.Thumbnail; MediaDetails=MediaDetailsText.Format(value.Info);
             var matching=Presets.FirstOrDefault(p=>p.Name==value.Options.PresetName);
             if(!ReferenceEquals(SelectedPreset,matching)) { selectedPreset=matching; OnPropertyChanged(nameof(SelectedPreset)); }
         }
@@ -385,25 +384,10 @@ public sealed partial class MainViewModel : ObservableObject
         adjustingEncoder=true;
         try
         {
-            var v=item.Options.Video;
-            if(defaults)
-            {RestoreEncoderOptions(v);if(CutTimeline.Active(item.Options))v.CudaScale=false;}
-            // Editable ComboBoxes can write empty text while their available items change.
-            // Keep the requested settings and rebind after all dependent lists are ready.
-            var preset=v.Preset??""; var tune=v.Tune??""; var profile=v.Profile??""; var pixelFormat=v.PixelFormat??"";
-            var allowed=VideoEncoderPolicy.IsAllowed(v.Encoder);
-            var e=allowed?Capabilities.Find(v.Encoder):null;
-            EncoderInfo=!allowed?VideoEncoderPolicy.UnavailableMessage(v.Encoder):e is null?L.T("Encoder im Build nicht vorhanden."):$"{e.Family} · {e.Name}\n{e.Description}\n{(e.Hardware?L.T("Hardware-Unterstützung wird vor dem Start tatsächlich geprüft."):L.T("Softwareencoder"))}";
-            Fill(PixelFormats,e?.PixelFormats);
-            Fill(PresetChoices,e?.Options?.FirstOrDefault(o=>o.Name==(v.Encoder=="libaom-av1"?"cpu-used":v.Encoder=="librav1e"?"speed":"preset"))?.Choices);
-            Fill(TuneChoices,e?.Options?.FirstOrDefault(o=>o.Name=="tune")?.Choices);
-            Fill(ProfileChoices,e?.Options?.FirstOrDefault(o=>o.Name=="profile")?.Choices);
-            CanSetPreset=e?.Options?.Any(o=>o.Name is "preset" or "speed" or "cpu-used")==true;
-            CanSetTune=e?.Options?.Any(o=>o.Name=="tune")==true;
-            if(v.Encoder is "libx264" or "libx264rgb" or "libx265") Fill(PresetChoices,["ultrafast","superfast","veryfast","faster","fast","medium","slow","slower","veryslow"]);
-            v.Preset=preset; v.Tune=tune; v.Profile=profile;
-            v.PixelFormat=pixelFormat;
-            Fill(VideoPresetChoices,VideoPresetValues.Select(s=>VideoPresentation.PresetLabel(s,v.Encoder,VideoPresetDefault)),false);
+            var state=EncoderChoices.Apply(item.Options.Video,Capabilities,defaults,CutTimeline.Active(item.Options),RestoreEncoderOptions,
+                PixelFormats,PresetChoices,TuneChoices,ProfileChoices,VideoPresetChoices,
+                ()=>VideoPresetValues.Select(s=>VideoPresentation.PresetLabel(s,item.Options.Video.Encoder,VideoPresetDefault)));
+            EncoderInfo=state.EncoderInfo;CanSetPreset=state.CanSetPreset;CanSetTune=state.CanSetTune;
             RefreshVideoLabels();
             OnPropertyChanged(nameof(SelectedMedia));
             GpuProbeText="";
@@ -419,34 +403,12 @@ public sealed partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(VideoQualityRange));OnPropertyChanged(nameof(VideoQualityHint));
         OnPropertyChanged(nameof(ThreadControlDescription));
     }
-    private static void Fill(ObservableCollection<string> target,IEnumerable<string>? items,bool includeEmpty=true)
-    {
-        var values=(includeEmpty?new[]{""}:Array.Empty<string>()).Concat(items??[]).Distinct().ToArray();
-        for(var i=0;i<values.Length;i++)
-        {
-            if(i<target.Count&&target[i]==values[i]) continue;
-            var existing=target.IndexOf(values[i]);
-            if(existing>=0) target.Move(existing,i); else target.Insert(i,values[i]);
-        }
-        while(target.Count>values.Length) target.RemoveAt(target.Count-1);
-    }
     private void RefreshSummary()
     {
         OnPropertyChanged(nameof(CutSummary));
         if(SelectedMedia is not { } item) { CommandText=""; OutputFileNamePreview=""; ValidationText=""; RefreshCommandPreview(); return; }
-        Conversion=ScalingService.Describe(item.Info,item.Options);
-        var errors=builder.Validate(item.Info,item.Options,Capabilities);
-        ValidationText=string.Join("\n",errors);
-        var estimated=SizeEstimator.Estimate(item.Info,item.Options);
-        EstimateText=estimated.HasValue?L.F($"Bitraten-Schätzung: ca. {estimated/1048576d:0.0} MiB (inkl. 2 % Containerzuschlag)."):L.T("CRF/CQ: Dateigröße unbekannt. Ein Testencode ermöglicht eine grobe Hochrechnung.");
-        try
-        {
-            var output=QueueService.SuggestedOutputPath(item.Info,item.Options,Settings.FileNaming);
-            OutputFileNamePreview=Path.GetFileName(output);
-            var temporary=Path.Combine(Path.GetDirectoryName(output)!,Path.GetFileNameWithoutExtension(output)+".unvollstaendig-VORSCHAU"+Path.GetExtension(output));
-            CommandText=FFmpegCommandBuilder.Display(versions.Active?.FFmpegPath??"ffmpeg.exe",builder.Build(item.Info,item.Options,temporary,Capabilities));
-        }
-        catch(Exception e) { CommandText="";OutputFileNamePreview=""; if(ValidationText.Length==0) ValidationText=e.Message; }
+        var current=EncodeCommandPreview.ForMedia(item.Info,item.Options,Settings,Capabilities,builder,versions.Active?.FFmpegPath??"ffmpeg.exe");
+        Conversion=current.Conversion;ValidationText=current.Validation;EstimateText=current.Estimate;OutputFileNamePreview=current.OutputFileName;CommandText=current.Command;
         RefreshCommandPreview();
     }
     private void RefreshCommandPreview()
@@ -527,7 +489,7 @@ public sealed partial class MainViewModel : ObservableObject
     }
     private void UpdateQueueSummary()
     {
-        QueueSummary=L.F($"{Jobs.Count} Jobs · {Jobs.Count(j=>j.Status==JobStatus.Läuft)} aktiv · {Jobs.Count(j=>j.Status==JobStatus.Abgeschlossen)} fertig · {Jobs.Count(j=>j.Status==JobStatus.Fehlgeschlagen)} Fehler");
+        QueueSummary=QueueSummaryText.Format(Jobs);
         QueueProgress=Jobs.Count==0?0:Jobs.Sum(j=>j.Status==JobStatus.Abgeschlossen?100:j.Progress??0)/Jobs.Count;
     }
     [RelayCommand] private Task DetectCropAsync() => RunUiAsync(L.T("Schwarze Balken werden an mehreren Positionen geprüft …"),async ct=>
@@ -541,9 +503,7 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand] private Task TestEncodeAsync() => RunUiAsync(L.T("Testencode vorbereiten …"),async ct=>
     {
         var item=SelectedMedia??throw new InvalidOperationException(L.T("Datei auswählen."));
-        if(TestSeconds<=0||TestSeconds>120) throw new ArgumentException(L.T("Testlänge zwischen 0 und 120 Sekunden wählen."));
-        var o=Json.Clone(item.Options); o.ClipStart=PreviewSeconds; o.ClipDuration=Math.Min(TestSeconds,(item.Info.Duration??double.MaxValue)-PreviewSeconds);
-        o.OutputDirectory=Path.Combine(paths.Cache,"test-encodes"); o.FileNamePattern="{name}_Test_{codec}";
+        var o=TestEncodePlan.Create(item.Options,PreviewSeconds,TestSeconds,item.Info.Duration,paths.Cache);
         var job=await queue.AddAsync(item.Info,o,ct);queue.Start(job);StatusText=TestEncodeNotificationWindow.StatusMessage(job);
         if(Settings.ShowTestEncodeNotification)
         {
@@ -575,56 +535,28 @@ public sealed partial class MainViewModel : ObservableObject
         using var cancellation=CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
         var active=new AnalysisOperation(cancellation,new(TaskCreationOptions.RunContinuationsAsynchronously));
         analysisOperations.Add(job.Id,active);
-        job.AnalysisProgress=null; job.AnalysisStatus=L.T("Qualitätsanalyse wird gestartet …");
-        job.AnalysisDetails=L.T("Quelle und Ausgabedatei werden verglichen. Die Analyse besteht aus mehreren Durchläufen.");
-        job.IsAnalyzing=true; RefreshAnalysisCommands();
-        var clock=Stopwatch.StartNew();
         try
         {
-            await quality.AnalyzeAsync(job,new Progress<QualityAnalysisProgress>(p=>
+            var outcome=await QualityAnalysisRun.ExecuteAsync(job,quality,p=>
             {
-                if(cancellation.IsCancellationRequested||!analysisOperations.TryGetValue(job.Id,out var current)||!ReferenceEquals(current,active)) return;
-                job.AnalysisStatus=p.Stage; job.AnalysisProgress=p.Percent;
-                job.AnalysisDetails=DescribeAnalysisProgress(p);
                 if(!IsBusy) StatusText=L.F($"Qualitätsanalyse · {job.Name} · {p.Stage}");
-            }),cancellation.Token);
-            job.AnalysisProgress=100; job.AnalysisStatus=L.T("Qualitätsanalyse abgeschlossen");
-            static string N(double? value)=>value?.ToString("0.###")??L.T("nicht verfügbar");
-            var result=job.Analysis!;
-            job.AnalysisDetails=L.F($"VMAF {N(result.Vmaf)} · SSIM {N(result.Ssim)} · PSNR {N(result.Psnr)} dB\nDauer {FormatAnalysisTime(clock.Elapsed)} · Ergebnisse gespeichert.");
+            },e=>log.Write(L.F($"Qualitätsanalyse fehlgeschlagen: {job.Name}"),e),cancellation.Token,
+                ()=>!cancellation.IsCancellationRequested&&analysisOperations.TryGetValue(job.Id,out var current)&&ReferenceEquals(current,active),
+                RefreshAnalysisCommands);
             OnPropertyChanged(nameof(SelectedJobDetails));
-            if(!IsBusy) StatusText=L.F($"Qualitätsanalyse abgeschlossen · {job.Name}");
-            if(showResult&&!lifetime.IsCancellationRequested)
-                new AnalysisWindow(result) {Owner=System.Windows.Application.Current.MainWindow}.Show();
-        }
-        catch(OperationCanceledException)
-        {
-            job.AnalysisProgress=null; job.AnalysisStatus=L.T("Qualitätsanalyse abgebrochen");
-            job.AnalysisDetails=L.F($"Beendet nach {FormatAnalysisTime(clock.Elapsed)}. Vorhandene Messwerte bleiben verfügbar.");
-        }
-        catch(Exception e)
-        {
-            job.AnalysisProgress=null; job.AnalysisStatus=L.T("Qualitätsanalyse fehlgeschlagen");
-            job.AnalysisDetails=e.Message.Length>4000?e.Message[..4000]:e.Message;
-            log.Write(L.F($"Qualitätsanalyse fehlgeschlagen: {job.Name}"),e);
-            if(!IsBusy) StatusText=L.F($"Qualitätsanalyse fehlgeschlagen · {job.Name}");
+            if(outcome==QualityAnalysisOutcome.Completed)
+            {
+                if(!IsBusy) StatusText=L.F($"Qualitätsanalyse abgeschlossen · {job.Name}");
+                if(showResult&&!lifetime.IsCancellationRequested&&job.Analysis is {} result)
+                    new AnalysisWindow(result) {Owner=System.Windows.Application.Current.MainWindow}.Show();
+            }
+            else if(outcome==QualityAnalysisOutcome.Failed&&!IsBusy) StatusText=L.F($"Qualitätsanalyse fehlgeschlagen · {job.Name}");
         }
         finally
         {
-            job.IsAnalyzing=false; analysisOperations.Remove(job.Id); RefreshAnalysisCommands();
+            analysisOperations.Remove(job.Id); RefreshAnalysisCommands();
             active.Completion.TrySetResult();
         }
-    }
-    private static string FormatAnalysisTime(TimeSpan value) => $"{(int)value.TotalHours:00}:{value.Minutes:00}:{value.Seconds:00}";
-    private static string DescribeAnalysisProgress(QualityAnalysisProgress p)
-    {
-        var parts=new List<string>();
-        if(p.Percent.HasValue) parts.Add(L.F($"{p.Percent:0.0} % im aktuellen Durchlauf"));
-        if(p.Seconds.HasValue) parts.Add(p.Duration.HasValue?$"{p.Seconds:0.0} / {p.Duration:0.0} s":L.F($"{p.Seconds:0.0} s verarbeitet"));
-        if(p.Speed.HasValue) parts.Add($"{p.Speed:0.00}×");
-        parts.Add(L.F($"Laufzeit {FormatAnalysisTime(p.Elapsed)}"));
-        if(p.Remaining.HasValue) parts.Add(L.F($"Rest im Durchlauf ca. {FormatAnalysisTime(p.Remaining.Value)}"));
-        return string.Join(" · ",parts);
     }
     [RelayCommand] private void ShowAnalysis()
     {
@@ -730,19 +662,8 @@ public sealed partial class MainViewModel : ObservableObject
         await RunUiAsync(L.T("Einstellungen speichern …"),async _=>
         {
             foreach(var rule in dialog.Result.WatchFolders.Where(r=>r.Enabled)) FolderWatchService.ValidateRule(rule);
-            var edited=dialog.Result; Settings.ThemeId=ThemeCatalog.Resolve(edited.ThemeId,edited.DarkMode).Id;
-            Settings.DarkMode=ThemeCatalog.Resolve(Settings.ThemeId).IsDark; Settings.RecursiveImport=edited.RecursiveImport;
-            Settings.TooltipsEnabled=edited.TooltipsEnabled;Settings.TooltipDelaySeconds=TooltipTiming.Normalize(edited.TooltipDelaySeconds);
-            Settings.ShowTestEncodeNotification=edited.ShowTestEncodeNotification;
-            Settings.FileNaming=Json.Clone(edited.FileNaming);OnPropertyChanged(nameof(CanEditFileNamePattern));
-            ButtonHints.Apply(Settings);
-            Settings.AutoInstall=edited.AutoInstall; Settings.AutoUpdate=edited.AutoUpdate; Settings.CheckUpdates=edited.CheckUpdates;
-            Settings.UpdateIntervalHours=Math.Clamp(edited.UpdateIntervalHours,1,720); Settings.ParallelJobs=Math.Clamp(edited.ParallelJobs,1,16);
-            Settings.ParallelGpuJobs=Math.Clamp(edited.ParallelGpuJobs,1,8); Settings.CacheLimitMiB=Math.Clamp(edited.CacheLimitMiB,32,16384);
-            Settings.EfficiencyMode=edited.EfficiencyMode;RefreshExecutionSettings();
-            Settings.DefaultOutputDirectory=edited.DefaultOutputDirectory; Settings.WatchFolders=edited.WatchFolders;
-            Settings.CompletionAction=edited.CompletionAction;
-            Settings.Language=L.Normalize(edited.Language);
+            var edited=dialog.Result; SettingsTransfer.Apply(Settings,edited); OnPropertyChanged(nameof(CanEditFileNamePattern));
+            ButtonHints.Apply(Settings); RefreshExecutionSettings();
             await settings.SaveAsync(); App.ApplyLanguage(Settings.Language); App.ApplyTheme(Settings.ThemeId); StatusText=L.T("Einstellungen gespeichert."); OnPropertyChanged(nameof(Settings));RefreshSummary();
         });
     }
@@ -851,27 +772,12 @@ public sealed partial class MainViewModel : ObservableObject
             job.RefreshLanguage();
         }
         UpdateQueueSummary(); RefreshEncoderChoices(false); RefreshSummary();
-        if(SelectedMedia is {} media) MediaDetails=BuildMediaDetails(media.Info);
+        if(SelectedMedia is {} media) MediaDetails=MediaDetailsText.Format(media.Info);
         else { Conversion=L.T("Dateien importieren, um die Konvertierung einzurichten."); MediaDetails=L.T("Noch keine Datei ausgewählt."); EncoderInfo=L.T("Noch kein Encoder erkannt."); }
         OnPropertyChanged(nameof(SelectedJobDetails));
     }
     public static BitmapImage LoadImage(string path)
     {
         var image=new BitmapImage(); image.BeginInit(); image.CacheOption=BitmapCacheOption.OnLoad; image.UriSource=new Uri(Path.GetFullPath(path)); image.EndInit(); image.Freeze(); return image;
-    }
-    private static string BuildMediaDetails(MediaInfo info)
-    {
-        static string N(object? x)=>x?.ToString()??L.T("unbekannt");
-        var text=new StringBuilder(L.F($"Datei: {info.Path}\nContainer: {info.Container}\nGröße: {info.Size:N0} Bytes\nDauer: {N(info.Duration)} s\nGesamtbitrate: {N(info.BitRate)} bit/s\nStartzeit: {info.StartTime}\n"));
-        foreach(var stream in info.Streams)
-        {
-            text.AppendLine($"\n{stream.Type.ToUpperInvariant()} #{stream.Index} — {stream.Summary}");
-            text.AppendLine(L.F($"Profil: {N(stream.Profile)} · Level: {N(stream.Level)} · Bitrate: {N(stream.BitRate)}"));
-            if(stream.Type=="video") text.AppendLine(L.F($"Raster: {stream.Width} × {stream.Height} · SAR: {N(stream.SampleAspectRatio)} · DAR: {N(stream.DisplayAspectRatio)}\nBildrate: {N(stream.AverageFrameRate)} · {stream.FrameRateMode}\nPixelformat: {N(stream.PixelFormat)} · Tiefe: {N(stream.BitDepth)}\nFarbraum: {N(stream.ColorSpace)} · Primärfarben: {N(stream.ColorPrimaries)} · Transfer: {N(stream.ColorTransfer)} · Bereich: {N(stream.ColorRange)}\nHDR: {(stream.IsHdr?L.T("Ja"):L.T("Nicht erkannt"))} · Rotation: {stream.Rotation}°\nSide Data: {stream.SideDataJson}"));
-            text.AppendLine(L.F($"Sprache: {stream.Language} · Titel: {stream.Title} · Default: {stream.Default} · Forced: {stream.Forced}"));
-            foreach(var tag in stream.Tags) text.AppendLine($"  {tag.Key}: {tag.Value}");
-        }
-        text.AppendLine(L.T("\nKapitel:\n")+info.ChaptersJson+L.T("\nContainer-Metadaten:\n")+JsonSerializer.Serialize(info.Tags,Json.Options));
-        return text.ToString();
     }
 }

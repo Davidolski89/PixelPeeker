@@ -2,6 +2,7 @@ using System.Collections.Specialized;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FFmpegStudio.Core;
+using FFmpegStudio.Shared;
 
 namespace FFmpegStudio.Desktop;
 
@@ -34,14 +35,8 @@ public sealed partial class MainViewModel
     private void CutsChanged(object? sender,NotifyCollectionChangedEventArgs e){RefreshCuts();RefreshSummary();}
     private void EnsureCutAudio()
     {
-        if(SelectedMedia is not {} item||!CutTimeline.Active(item.Options))return;
-        item.Options.Video.CudaScale=false;
-        foreach(var track in item.Options.Audio.Where(a=>a.Action==TrackAction.Kopieren))
-        {
-            track.Action=TrackAction.Encodieren;
-            if(item.Options.Container is "mp4" or "mov" && track.Encoder is not ("aac" or "libopus" or "ac3" or "eac3" or "alac" or "libmp3lame"))track.Encoder="aac";
-            if(item.Options.Container=="webm" && track.Encoder is not ("libopus" or "libvorbis"))track.Encoder="libopus";
-        }
+        if(SelectedMedia is not {} item)return;
+        CutEditing.EnsureAudio(item.Options);
     }
     private void RefreshCuts()
     {
@@ -62,10 +57,7 @@ public sealed partial class MainViewModel
     private void AddCut(SourceFramePosition? end)
     {
         if(SelectedMedia is not {} item||PendingCutStart is not {} start)return;
-        var region=new CutRegion(start,end);var merged=CutTimeline.Merge(item.Options.Cuts.Append(region));
-        item.Options.Cuts.Clear();foreach(var cut in merged)item.Options.Cuts.Add(cut);
-        item.Options.CutsEnabled=true;EnsureCutAudio();PendingCutStart=null;
-        SelectedCut=item.Options.Cuts.FirstOrDefault(c=>c.Start.Seconds<=start.Seconds&&(c.End is null||c.End.Seconds>=start.Seconds));
+        SelectedCut=CutEditing.Add(item.Options,start,end);PendingCutStart=null;
         RefreshCuts();RefreshSummary();
     }
     [RelayCommand(CanExecute=nameof(HasSelectedCut))] private Task JumpCutStartAsync()=>RequestPreviewAsync(SelectedCut!.Start.Seconds);

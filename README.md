@@ -1,6 +1,10 @@
 # PixelPeeker
 
+[![CI](https://github.com/Davidolski89/PixelPeeker/actions/workflows/ci.yml/badge.svg)](https://github.com/Davidolski89/PixelPeeker/actions/workflows/ci.yml)
+
 Native Windows 10/11 x64 video conversion built with WPF and .NET 10. The first usable release imports media, inspects it with ffprobe, detects encoders and filters in the installed FFmpeg build, configures each audio and subtitle stream, and runs real software or NVIDIA NVENC jobs. Its queue and settings persist in SQLite and JSON.
+
+**Linux / Avalonia (in progress).** Phase 1 extracts the portable services into `net10.0` libraries (`FFmpegStudio.Core`, `FFmpegStudio.Infrastructure`, `FFmpegStudio.Shared`) and adds an Avalonia desktop project, `src/FFmpegStudio.Avalonia`. That shell builds on Linux and Windows and reuses `LibraryViewModel`: open a media file, show ffprobe details when FFmpeg is already available, and list the saved queue. Playback, the full editor and downloading FFmpeg on Linux are later phases. The WPF app remains the complete Windows product. On Linux, build the portable subset with `dotnet build FFmpegStudio.Linux.slnf` and run `dotnet run --project src/FFmpegStudio.Avalonia/FFmpegStudio.Avalonia.csproj`. The WPF project targets `net10.0-windows` and does not build on Linux.
 
 Version 0.10.23 merges **Compare frames** and **Compare encodes** into one **Compare** button and maximized window. Select one completed job for source versus encode, or two jobs for A/B with an optional source reference. The unified viewer retains hold-Space reference preview, five sample frames, pixel zoom, synchronized panning and external files. Reference filters can match crop, scale and other spatial settings from encode A. Reopening preserves the comparison. All nine languages, remembered codec settings and accurate seeking remain available. See [CHANGELOG.md](CHANGELOG.md).
 
@@ -12,7 +16,7 @@ Install the .NET 10 SDK and Windows Desktop targeting pack, then run Build.ps1. 
 
 Publishing runs the tests by default. Use `Publish.ps1 -SkipTests` only when the same source has already passed its relevant tests in a separate run.
 
-Open FFmpegStudio.sln in Visual Studio. The executable built from source is src/FFmpegStudio.Desktop/bin/Release/net10.0-windows/PixelPeeker.exe.
+Open FFmpegStudio.sln in Visual Studio. The Windows executable built from source is src/FFmpegStudio.Desktop/bin/Release/net10.0-windows/PixelPeeker.exe. The Avalonia shell is src/FFmpegStudio.Avalonia/bin/Release/net10.0/PixelPeeker.Avalonia. Both outputs copy LICENSE, THIRD-PARTY-NOTICES.md and licenses/ beside the executable.
 
 ## What works
 
@@ -91,11 +95,37 @@ FFmpeg receives each argument via ProcessStartInfo.ArgumentList without a comman
 
 ## FFmpeg source and licence
 
-The managed download source is [Gyan's FFmpeg Windows builds](https://www.gyan.dev/ffmpeg/builds/). The application uses the Git Master Full .7z archive and its matching .ver and .sha256 text files. These endpoints and the live metadata format were verified while developing this version. Gyan says its static builds are **GPLv3**. The build's ffmpeg version, build configuration, commit id, pinned archive URL and checksum are retained in the managed install directory. The application does not bundle FFmpeg binaries in its source or publish output; the user can install, update or select FFmpeg separately. A Gyan build and every library it contains carry their respective licence obligations. See [Gyan's build and library notes](https://www.gyan.dev/ffmpeg/builds/#about-these-builds) and [FFmpeg's legal FAQ](https://ffmpeg.org/legal.html) before redistributing a build.
+The managed Windows download source is [Gyan's FFmpeg Windows builds](https://www.gyan.dev/ffmpeg/builds/). The application uses the Git Master Full .7z archive and its matching .ver and .sha256 text files. These endpoints and the live metadata format were verified while developing this version. Gyan says its static builds are **GPLv3**. The build's ffmpeg version, build configuration, commit id, pinned archive URL and checksum are retained in the managed install directory. The application does not bundle FFmpeg binaries in its source or publish output; the user can install, update or select FFmpeg separately. A Gyan build and every library it contains carry their respective licence obligations. See [Gyan's build and library notes](https://www.gyan.dev/ffmpeg/builds/#about-these-builds) and [FFmpeg's legal FAQ](https://ffmpeg.org/legal.html) before redistributing a build.
+
+### Linux
+
+On Linux x64 and arm64 the Avalonia shell downloads a static GPL FFmpeg build. The Windows gyan.dev downloader is unchanged. The application still does not ship FFmpeg binaries; it only links to the publisher's files, checks the published checksum, and stores the source URL with the install.
+
+Primary source: [BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds) GitHub releases. The app reads `https://api.github.com/repos/BtbN/FFmpeg-Builds/releases?per_page=8`, chooses the newest tag named `autobuild-*` that contains `checksums.sha256` and a static GPL asset, and downloads that immutable asset. The rolling `latest` tag is not used. Asset names, verified on 2026-10-26:
+
+- x64: `ffmpeg-N-<build>-g<commit>-linux64-gpl.tar.xz`
+- arm64: `ffmpeg-N-<build>-g<commit>-linuxarm64-gpl.tar.xz`
+
+Shared (`*-gpl-shared.tar.xz`) and LGPL assets are not selected. The `gpl` variant is a static executable build (libx264, libx265 and the other GPL dependencies), licensed **GPL-3.0-or-later**. BtbN's published Linux floor is glibc 2.28 and Linux 4.18. The builds are not musl/Alpine builds. Corresponding source is the FFmpeg commit embedded in the asset name, published by the [FFmpeg project](https://ffmpeg.org/download.html#get-sources), together with BtbN's build scripts in the same repository. The checksum file in that release is `checksums.sha256` (SHA-256, two spaces, then the file name).
+
+Fallback, used when the BtbN release list or checksum file cannot be read: [John Van Sickle's static builds](https://johnvansickle.com/ffmpeg/). Those pages state that the builds are licensed under the **GNU GPL version 3**. URLs verified on 2026-10-26:
+
+- x64: `https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz` and the sibling `.md5`
+- arm64: `https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-arm64-static.tar.xz` and the sibling `.md5`
+
+John publishes MD5 sums, not SHA-256. The fallback checks that MD5 before extraction. These release builds are older than the BtbN autobuilds (the release files were last updated in August 2024). They target Linux kernels 3.2 and newer and are still glibc builds, not musl builds. John does not publish a glibc version. Corresponding source is the FFmpeg release named by `ffmpeg -version`, from the [FFmpeg source archives](https://ffmpeg.org/download.html#get-sources).
+
+The app does not download either static build unless it can read a glibc of at least 2.28. That floor is BtbN's published requirement. It is also applied to the John Van Sickle fallback, because those binaries are glibc builds and do not document a lower floor. musl systems (Alpine via `/etc/alpine-release`, `ID=alpine` / `ID_LIKE=alpine`, or a `musl` / `ld-musl` loader) and glibc older than 2.28 skip the download. The status text then names the package-manager commands `apk add ffmpeg`, `sudo apt install ffmpeg`, `sudo dnf install ffmpeg` and `sudo pacman -S ffmpeg`, and the System FFmpeg action uses `ffmpeg` and `ffprobe` from `PATH` or a pair the user picks. Detection reads `ldd --version`, `getconf GNU_LIBC_VERSION` and the dynamic loader of the process. An unreadable C library is treated as unsupported rather than attempting the download.
+
+Both publishers allow downloading the builds from those public URLs. PixelPeeker does not redistribute the binaries. A user who already has ffmpeg and ffprobe can choose the pair on `PATH` instead of a managed install. xz archives are decompressed and then extracted with the same path checks used for the Windows 7z archives. `studio-install.json` in the version folder records the version id, checksum, algorithm, source URL and `GPL-3.0-or-later`.
+
+Linux playback does not bundle VLC. The Avalonia shell loads the system `libvlc` (for example the distro `libvlc5` and `vlc-plugin-base` packages). See [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
 The app references CommunityToolkit.Mvvm (MIT), Microsoft.Extensions.DependencyInjection (MIT), Microsoft.Data.Sqlite (MIT), SharpCompress (MIT) and SQLitePCLRaw (Apache 2.0; SQLite engine code is public domain). The portable publish includes the applicable runtime licenses and third-party notices in `licenses/`; see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). xUnit (Apache 2.0) is a development and test dependency and is not part of the desktop app. Restored direct and transitive dependencies are listed by NuGet with dotnet list package --include-transitive.
 
 ## Tests
+
+[GitHub Actions](.github/workflows/ci.yml) runs on pull requests and on pushes to `main`. `windows-latest` restores and builds `FFmpegStudio.sln` in Release, including the WPF desktop project, then runs `dotnet test` for every test project in that solution (service tests, the off-screen STA tests in `FFmpegStudio.Desktop.Tests`, and the Avalonia headless tests). `ubuntu-latest` builds `FFmpegStudio.Linux.slnf`, runs those tests, and starts the Avalonia shell with `--smoke` under Xvfb. The workflow installs the SDK named in `global.json`, caches NuGet packages, and does not publish. Paths that need a real FFmpeg build or a GPU are not part of CI: they return immediately unless `FFMPEG_STUDIO_TEST_DATA` or `PIXELPEEKER_LIVE_FFMPEG` is set, and the workflow sets neither. `tools/FFmpegStudio.Verify` is a console tool, not a test project, so CI does not run it.
 
 dotnet test FFmpegStudio.sln -c Release exercises parsing, scaling, stream mapping, bitrate and quality rules, capability detection, update metadata, download integrity, archive path safety, queue recovery and preset remapping. The integration runner creates media and exercises actual encoding, sensors, a GPU and the installed FFmpeg build; see tools/FFmpegStudio.Verify.
 

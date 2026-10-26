@@ -16,6 +16,9 @@ public sealed record ProcessResult(int ExitCode, string StandardOutput, string S
 
 public sealed class ProcessRunner
 {
+    private readonly IProcessControl control;
+    public ProcessRunner() : this(ProcessControls.ForCurrentPlatform()) { }
+    public ProcessRunner(IProcessControl control) => this.control = control;
     public async Task<ProcessResult> RunAsync(string executable, IEnumerable<string> arguments, CancellationToken ct = default,
         Action<string>? outputLine = null, Action<string>? errorLine = null, string? workingDirectory = null, Action? started = null,
         bool efficiencyMode = false, Action<ProcessSchedulingInfo>? schedulingApplied = null)
@@ -30,8 +33,8 @@ public sealed class ProcessRunner
         foreach (var arg in arguments) start.ArgumentList.Add(arg);
         using var process = new Process { StartInfo = start };
         if (!process.Start()) throw new InvalidOperationException(L.F($"Prozess konnte nicht gestartet werden: {executable}"));
-        var scheduling = WindowsEfficiencyMode.Apply(process, efficiencyMode);
-        using var job = WindowsProcessJob.TryAttach(process);
+        var scheduling = control.ApplyEfficiency(process, efficiencyMode);
+        using var job = control.AttachLifetime(process);
         using var registration = ct.Register(() => Kill(process));
         var stdout = new StringBuilder(); var stderr = new StringBuilder();
         async Task ReadAsync(StreamReader reader, StringBuilder buffer, Action<string>? callback, int limit)

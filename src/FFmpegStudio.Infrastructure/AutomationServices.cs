@@ -82,9 +82,10 @@ public sealed class FolderWatchService(SettingsService settings, QueueStore stor
     }
 }
 
-public sealed class HardwareMonitorService(ProcessRunner runner)
+public sealed class HardwareMonitorService(ProcessRunner runner) : IHardwareMonitor
 {
     private ulong lastIdle, lastKernel, lastUser;
+    private ulong linuxIdle, linuxTotal;
     public async Task<SensorSnapshot> ReadAsync(CancellationToken ct = default)
     {
         double? cpu = null, ram = null;
@@ -99,6 +100,7 @@ public sealed class HardwareMonitorService(ProcessRunner runner)
             var memory = new MemoryStatus { Length = (uint)Marshal.SizeOf<MemoryStatus>() };
             if (GlobalMemoryStatusEx(ref memory)) ram = memory.Load;
         }
+        else ReadLinuxSensors(ref cpu, ref ram);
         var gpus = new List<GpuSensor>();
         var executable = FindNvidiaSmi();
         if (executable is not null)
@@ -123,13 +125,60 @@ public sealed class HardwareMonitorService(ProcessRunner runner)
     }
     public static string? FindNvidiaSmi()
     {
-        var choices = new List<string>
+        var choices = new List<string>();
+        if (OperatingSystem.IsWindows())
         {
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "nvidia-smi.exe"),
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "NVIDIA Corporation", "NVSMI", "nvidia-smi.exe")
-        };
-        choices.AddRange((Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator).Where(Directory.Exists).Select(d => Path.Combine(d, "nvidia-smi.exe")));
+            choices.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "nvidia-smi.exe"));
+            choices.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "NVIDIA Corporation", "NVSMI", "nvidia-smi.exe"));
+            choices.AddRange((Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator).Where(Directory.Exists).Select(d => Path.Combine(d, "nvidia-smi.exe")));
+        }
+        else
+        {
+            choices.AddRange((Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator).Where(Directory.Exists).Select(d => Path.Combine(d, "nvidia-smi")));
+        }
         return choices.FirstOrDefault(File.Exists);
+    }
+    private void ReadLinuxSensors(ref double? cpu, ref double? ram)
+    {
+        try
+        {
+            if (File.Exists("/proc/stat"))
+            {
+                var line = File.ReadLines("/proc/stat").FirstOrDefault(l => l.StartsWith("cpu ", StringComparison.Ordinal));
+                var parts = line?.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                if (parts is { Length: >= 5 } && parts.Skip(1).All(p => ulong.TryParse(p, NumberStyles.None, CultureInfo.InvariantCulture, out _)))
+                {
+                    var numbers = parts.Skip(1).Select(p => ulong.Parse(p, CultureInfo.InvariantCulture)).ToArray();
+                    var idle = numbers[3] + (numbers.Length > 4 ? numbers[4] : 0);
+                    ulong total = 0;
+                    foreach (var n in numbers) total += n;
+                    if (linuxTotal > 0 && total > linuxTotal)
+                    {
+                        var delta = total - linuxTotal;
+                        var idleDelta = idle >= linuxIdle ? idle - linuxIdle : 0;
+                        cpu = Math.Clamp(100d * (delta - Math.Min(idleDelta, delta)) / delta, 0, 100);
+                    }
+                    linuxIdle = idle;
+                    linuxTotal = total;
+                }
+            }
+            if (!File.Exists("/proc/meminfo")) return;
+            ulong? memTotal = null, memAvailable = null;
+            foreach (var entry in File.ReadLines("/proc/meminfo"))
+            {
+                if (entry.StartsWith("MemTotal:", StringComparison.Ordinal) && TryKb(entry, out var totalKb)) memTotal = totalKb;
+                if (entry.StartsWith("MemAvailable:", StringComparison.Ordinal) && TryKb(entry, out var availableKb)) memAvailable = availableKb;
+            }
+            if (memTotal is > 0 && memAvailable is not null)
+                ram = Math.Clamp(100d * (memTotal.Value - Math.Min(memAvailable.Value, memTotal.Value)) / memTotal.Value, 0, 100);
+        }
+        catch (IOException) { }
+    }
+    private static bool TryKb(string line, out ulong value)
+    {
+        value = 0;
+        var parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length >= 2 && ulong.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out value);
     }
     [StructLayout(LayoutKind.Sequential)] private struct MemoryStatus
     { public uint Length, Load; public ulong TotalPhysical, AvailablePhysical, TotalPage, AvailablePage, TotalVirtual, AvailableVirtual, Extended; }

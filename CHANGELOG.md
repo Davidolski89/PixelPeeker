@@ -1,5 +1,16 @@
 # Änderungen
 
+## 0.10.41 – 26. Oktober 2026
+
+- GitHub Actions (`.github/workflows/ci.yml`) prüft Pull Requests und Pushes auf `main`. Windows baut `FFmpegStudio.sln` in Release und führt die Testprojekte aus, einschließlich der STA-Oberflächentests. Ubuntu baut `FFmpegStudio.Linux.slnf`, führt deren Tests aus und startet die Avalonia-Oberfläche mit `--smoke`. FFmpeg- und GPU-Integrationsläufe bleiben aus, solange `FFMPEG_STUDIO_TEST_DATA` und `PIXELPEEKER_LIVE_FFMPEG` nicht gesetzt sind.
+- Phase 1 der Avalonia-Migration: Prozesssteuerung, Hardwarewerte und die verwaltete FFmpeg-Installation liegen hinter Schnittstellen. `FFmpegStudio.Shared` (net10.0) enthält die gemeinsame Bibliotheks-, Medieninfo- und Queue-Logik.
+- Die Avalonia-Oberfläche bindet an `EditorViewModel`: Encoder, Qualität, Preset, Container, Skalierung, Crop, Schnitte, Presets, Befehlsvorschau und Queue-Befehle. Dateidialoge und Rückfragen bleiben in der jeweiligen Oberfläche. Die WPF-Anwendung ruft dieselbe Encoder-, Schnitt- und Befehlsvorschau-Logik auf.
+- Wiedergabe läuft über `IPlaybackSession`. Windows behält LibVLCSharp.WPF und das mitgelieferte LibVLC. Avalonia nutzt LibVLCSharp mit der Systembibliothek libvlc. LibVLCSharp.Avalonia entfällt, weil es Avalonia 11 verlangt.
+- Linux x64 und arm64 laden einen statischen GPL-Build von BtbN/FFmpeg-Builds (angeheftetes Autobuild, SHA-256). John Van Sickle ist die Ersatzquelle mit MD5. Ein ffmpeg/ffprobe im PATH kann stattdessen gewählt werden. Die Windows-Quelle bleibt gyan.dev.
+- Statische Linux-Builds werden nur bei glibc 2.28 oder neuer geladen. musl (zum Beispiel Alpine) und älteres glibc bekommen keinen Download, sondern einen Hinweis auf `apk add ffmpeg` sowie apt, dnf und pacman. Danach kann das System-FFmpeg gewählt werden.
+- Die Avalonia-Oberfläche übernimmt Encode-Vergleich, Qualitätsanalyse, den Einstellungsdialog, Pause auf das exakte Quellbild, Vorschaubilder, Expertenoptionen, Untertitelexport und den Testencode-Hinweis. Dieselbe Planungs- und Einstellungslogik nutzt auch die Windows-Oberfläche. Der WPF-Vergleich behält Filmstreifen und die genaue Bildfläche; die Qualitätsgrafik unter Windows bleibt die ausführlichere Ansicht.
+- Die Avalonia-Ausgabe kopiert `LICENSE`, `THIRD-PARTY-NOTICES.md` und `licenses/` neben die Anwendung, wie die Windows-Ausgabe.
+
 ## 0.10.40 – 26. Oktober 2026
 
 - PixelPeeker steht unter der GNU General Public License v3.0 oder jeder späteren Version. Copyright 2026 David Nagel. Der vollständige Lizenztext liegt in LICENSE und wird mit der portablen Ausgabe verteilt.

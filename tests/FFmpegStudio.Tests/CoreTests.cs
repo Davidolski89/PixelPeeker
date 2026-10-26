@@ -306,11 +306,14 @@ public sealed class CoreTests
     [Fact] public async Task Process_start_is_reported_only_after_a_process_actually_starts()
     {
         var runner = new ProcessRunner(); var starts = 0;
-        var result = await runner.RunAsync(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),"cmd.exe"),
-            ["/d","/c","exit","0"], started: () => starts++);
+        var executable = OperatingSystem.IsWindows()
+            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),"cmd.exe")
+            : "/bin/true";
+        var args = OperatingSystem.IsWindows() ? new[]{"/d","/c","exit","0"} : Array.Empty<string>();
+        var result = await runner.RunAsync(executable, args, started: () => starts++);
         Assert.Equal(0,result.ExitCode); Assert.Equal(1,starts);
         await Assert.ThrowsAsync<System.ComponentModel.Win32Exception>(() => runner.RunAsync(
-            Path.Combine(Path.GetTempPath(),Guid.NewGuid()+".exe"),[], started: () => starts++));
+            Path.Combine(Path.GetTempPath(),Guid.NewGuid()+(OperatingSystem.IsWindows()?".exe":"")),[], started: () => starts++));
         Assert.Equal(1,starts);
     }
     [Fact] public void Suggested_output_path_uses_real_naming_settings_without_creating_files()

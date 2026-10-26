@@ -1,0 +1,14 @@
+{
+  "solution": {
+    "path": "FFmpegStudio.sln",
+    "projects": [
+      "src\\FFmpegStudio.Core\\FFmpegStudio.Core.csproj",
+      "src\\FFmpegStudio.Infrastructure\\FFmpegStudio.Infrastructure.csproj",
+      "src\\FFmpegStudio.Shared\\FFmpegStudio.Shared.csproj",
+      "src\\FFmpegStudio.Avalonia\\FFmpegStudio.Avalonia.csproj",
+      "tests\\FFmpegStudio.Tests\\FFmpegStudio.Tests.csproj",
+      "tests\\FFmpegStudio.Avalonia.Tests\\FFmpegStudio.Avalonia.Tests.csproj",
+      "tools\\FFmpegStudio.Verify\\FFmpegStudio.Verify.csproj"
+    ]
+  }
+}

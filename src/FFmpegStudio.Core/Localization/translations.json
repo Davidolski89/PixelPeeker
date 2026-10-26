@@ -8178,5 +8178,275 @@
     "编码器默认值",
     "По умолчанию",
     "エンコーダー既定値"
+  ],
+  "Datei öffnen": [
+    "Open file",
+    "Otwórz plik",
+    "Ouvrir un fichier",
+    "Abrir archivo",
+    "Dosya aç",
+    "打开文件",
+    "Открыть файл",
+    "ファイルを開く"
+  ],
+  "Medienbibliothek": [
+    "Media library",
+    "Biblioteka multimediów",
+    "Bibliothèque multimédia",
+    "Biblioteca multimedia",
+    "Ortam kitaplığı",
+    "媒体库",
+    "Медиатека",
+    "メディアライブラリ"
+  ],
+  "Queue": [
+    "Queue",
+    "Kolejka",
+    "File d’attente",
+    "Cola",
+    "Kuyruk",
+    "队列",
+    "Очередь",
+    "キュー"
+  ],
+  "Ausgewählter Job": [
+    "Selected job",
+    "Wybrane zadanie",
+    "Tâche sélectionnée",
+    "Tarea seleccionada",
+    "Seçili iş",
+    "所选任务",
+    "Выбранное задание",
+    "選択したジョブ"
+  ],
+  "Avalonia-Vorschau. Wiedergabe, der vollständige Editor und die Beschaffung von FFmpeg für Linux folgen in späteren Phasen.": [
+    "Avalonia preview. Playback, the full editor, and obtaining FFmpeg for Linux come in later phases.",
+    "Podgląd Avalonia. Odtwarzanie, pełny edytor i pobieranie FFmpeg dla Linuksa pojawią się w kolejnych etapach.",
+    "Aperçu Avalonia. La lecture, l’éditeur complet et l’obtention de FFmpeg pour Linux viendront dans des phases ultérieures.",
+    "Vista previa de Avalonia. La reproducción, el editor completo y la obtención de FFmpeg para Linux llegarán en fases posteriores.",
+    "Avalonia önizlemesi. Oynatma, tam düzenleyici ve Linux için FFmpeg edinme sonraki aşamalarda gelecek.",
+    "Avalonia 预览。播放、完整编辑器以及在 Linux 上获取 FFmpeg 将在后续阶段提供。",
+    "Предпросмотр Avalonia. Воспроизведение, полный редактор и получение FFmpeg для Linux появятся на следующих этапах.",
+    "Avalonia プレビュー。再生、完全なエディター、Linux 向け FFmpeg の入手は後の段階で対応します。"
+  ],
+  "Verwaltete Installation: gyan.dev, nur Windows-Builds.": [
+    "Managed install: gyan.dev, Windows builds only.",
+    "Instalacja zarządzana: gyan.dev, tylko kompilacje Windows.",
+    "Installation gérée : gyan.dev, builds Windows uniquement.",
+    "Instalación administrada: gyan.dev, solo compilaciones de Windows.",
+    "Yönetilen kurulum: gyan.dev, yalnızca Windows derlemeleri.",
+    "托管安装：gyan.dev，仅 Windows 构建。",
+    "Управляемая установка: gyan.dev, только сборки Windows.",
+    "管理インストール: gyan.dev、Windows ビルドのみ。"
+  ],
+  "Verwaltete Installation ist auf diesem System nicht verfügbar. gyan.dev liefert nur Windows-Builds. Linux-FFmpeg folgt später.": [
+    "Managed install is not available on this system. gyan.dev provides Windows builds only. Linux FFmpeg comes later.",
+    "Instalacja zarządzana nie jest dostępna w tym systemie. gyan.dev dostarcza tylko kompilacje Windows. FFmpeg dla Linuksa pojawi się później.",
+    "L’installation gérée n’est pas disponible sur ce système. gyan.dev ne fournit que des builds Windows. FFmpeg pour Linux viendra plus tard.",
+    "La instalación administrada no está disponible en este sistema. gyan.dev solo ofrece compilaciones de Windows. FFmpeg para Linux llegará más adelante.",
+    "Yönetilen kurulum bu sistemde kullanılamıyor. gyan.dev yalnızca Windows derlemeleri sağlar. Linux FFmpeg daha sonra gelecek.",
+    "此系统无法使用托管安装。gyan.dev 仅提供 Windows 构建。Linux 版 FFmpeg 将在稍后提供。",
+    "Управляемая установка недоступна в этой системе. gyan.dev предоставляет только сборки Windows. FFmpeg для Linux появится позже.",
+    "このシステムでは管理インストールを利用できません。gyan.dev は Windows ビルドのみを提供します。Linux 向け FFmpeg は後で対応します。"
+  ],
+  "Die verwaltete FFmpeg-Installation lädt derzeit nur Windows-Builds von gyan.dev.": [
+    "The managed FFmpeg install currently downloads Windows builds from gyan.dev only.",
+    "Zarządzana instalacja FFmpeg pobiera obecnie tylko kompilacje Windows z gyan.dev.",
+    "L’installation gérée de FFmpeg ne télécharge actuellement que des builds Windows depuis gyan.dev.",
+    "La instalación administrada de FFmpeg actualmente solo descarga compilaciones de Windows desde gyan.dev.",
+    "Yönetilen FFmpeg kurulumu şu anda yalnızca gyan.dev üzerinden Windows derlemelerini indirir.",
+    "托管的 FFmpeg 安装目前仅从 gyan.dev 下载 Windows 构建。",
+    "Управляемая установка FFmpeg пока загружает только сборки Windows с gyan.dev.",
+    "管理された FFmpeg のインストールは、現在 gyan.dev の Windows ビルドのみをダウンロードします。"
+  ],
+  "FFmpeg/ffprobe fehlt, daher wurden keine Spuren, Codecs oder Laufzeiten gelesen.": [
+    "FFmpeg/ffprobe is missing, so no streams, codecs, or durations were read.",
+    "Brak FFmpeg/ffprobe, dlatego nie odczytano ścieżek, kodeków ani czasu trwania.",
+    "FFmpeg/ffprobe est absent, donc aucune piste, aucun codec ni aucune durée n’a été lu.",
+    "Falta FFmpeg/ffprobe, por lo que no se leyeron pistas, códecs ni duraciones.",
+    "FFmpeg/ffprobe yok, bu nedenle parça, codec veya süre okunmadı.",
+    "缺少 FFmpeg/ffprobe，因此未读取任何轨道、编解码器或时长。",
+    "FFmpeg/ffprobe отсутствует, поэтому дорожки, кодеки и длительность не прочитаны.",
+    "FFmpeg/ffprobe がないため、ストリーム、コーデック、再生時間は読み取っていません。"
+  ],
+  "Datei: {0}\nGröße: {1} Bytes\n": [
+    "File: {0}\nSize: {1} bytes\n",
+    "Plik: {0}\nRozmiar: {1} bajtów\n",
+    "Fichier : {0}\nTaille : {1} octets\n",
+    "Archivo: {0}\nTamaño: {1} bytes\n",
+    "Dosya: {0}\nBoyut: {1} bayt\n",
+    "文件: {0}\n大小: {1} 字节\n",
+    "Файл: {0}\nРазмер: {1} байт\n",
+    "ファイル: {0}\nサイズ: {1} バイト\n"
+  ],
+  "Die ausgewählte Datei hat keinen lokalen Pfad.": [
+    "The selected file has no local path.",
+    "Wybrany plik nie ma lokalnej ścieżki.",
+    "Le fichier sélectionné n’a pas de chemin local.",
+    "El archivo seleccionado no tiene una ruta local.",
+    "Seçilen dosyanın yerel yolu yok.",
+    "所选文件没有本地路径。",
+    "У выбранного файла нет локального пути.",
+    "選択したファイルにローカルパスがありません。"
+  ],
+  "Dieses System nutzt musl (zum Beispiel Alpine). Die statischen GPL-Builds von BtbN und John Van Sickle sind glibc-Programme und werden hier nicht heruntergeladen.": [
+    "This system uses musl (for example Alpine). The static GPL builds from BtbN and John Van Sickle are glibc programs and are not downloaded here.",
+    "Ten system używa musl (na przykład Alpine). Statyczne buildy GPL od BtbN i Johna Van Sickle’a to programy glibc i nie są tutaj pobierane.",
+    "Ce système utilise musl (par exemple Alpine). Les builds GPL statiques de BtbN et John Van Sickle sont des programmes glibc et ne sont pas téléchargés ici.",
+    "Este sistema usa musl (por ejemplo Alpine). Las compilaciones GPL estáticas de BtbN y John Van Sickle son programas glibc y no se descargan aquí.",
+    "Bu sistem musl kullanır (örneğin Alpine). BtbN ve John Van Sickle statik GPL derlemeleri glibc programlarıdır ve burada indirilmez.",
+    "此系统使用 musl（例如 Alpine）。BtbN 和 John Van Sickle 的静态 GPL 构建是 glibc 程序，此处不会下载。",
+    "Эта система использует musl (например, Alpine). Статические GPL-сборки BtbN и Джона Ван Сикла — программы glibc, и здесь они не скачиваются.",
+    "このシステムは musl（Alpine など）を使っています。BtbN と John Van Sickle の静的 GPL ビルドは glibc 向けのため、ここではダウンロードしません。"
+  ],
+  "glibc {0} ist älter als 2.28. Die statischen Builds brauchen mindestens glibc 2.28 und werden nicht heruntergeladen.": [
+    "glibc {0} is older than 2.28. The static builds need at least glibc 2.28 and are not downloaded.",
+    "glibc {0} jest starsze niż 2.28. Statyczne buildy wymagają co najmniej glibc 2.28 i nie są pobierane.",
+    "glibc {0} est plus ancienne que 2.28. Les builds statiques exigent au moins glibc 2.28 et ne sont pas téléchargés.",
+    "glibc {0} es anterior a 2.28. Las compilaciones estáticas necesitan al menos glibc 2.28 y no se descargan.",
+    "glibc {0}, 2.28 sürümünden eski. Statik derlemeler en az glibc 2.28 gerektirir ve indirilmez.",
+    "glibc {0} 低于 2.28。静态构建至少需要 glibc 2.28，因此不会下载。",
+    "glibc {0} старше 2.28. Статическим сборкам нужен glibc не ниже 2.28, поэтому они не скачиваются.",
+    "glibc {0} は 2.28 より古いです。静的ビルドには glibc 2.28 以上が必要なため、ダウンロードしません。"
+  ],
+  "Die C-Bibliothek konnte nicht als glibc 2.28 oder neuer bestätigt werden. Der statische Download wird nicht versucht.": [
+    "The C library could not be confirmed as glibc 2.28 or newer. The static download is not attempted.",
+    "Nie udało się potwierdzić biblioteki C jako glibc 2.28 lub nowszej. Statyczne pobieranie nie jest podejmowane.",
+    "La bibliothèque C n’a pas pu être confirmée comme glibc 2.28 ou plus récente. Le téléchargement statique n’est pas tenté.",
+    "No se pudo confirmar la biblioteca C como glibc 2.28 o posterior. No se intenta la descarga estática.",
+    "C kütüphanesi glibc 2.28 veya daha yeni olarak doğrulanamadı. Statik indirme denenmez.",
+    "无法确认 C 库为 glibc 2.28 或更新版本。不会尝试静态下载。",
+    "Не удалось подтвердить, что библиотека C — это glibc 2.28 или новее. Статическая загрузка не выполняется.",
+    "C ライブラリを glibc 2.28 以降と確認できませんでした。静的ダウンロードは行いません。"
+  ],
+  "Installiere FFmpeg über die Paketverwaltung und wähle danach „System-FFmpeg“ (ffmpeg und ffprobe im PATH):\nAlpine: apk add ffmpeg\nDebian/Ubuntu: sudo apt install ffmpeg\nFedora/RHEL: sudo dnf install ffmpeg\nArch: sudo pacman -S ffmpeg": [
+    "Install FFmpeg from the package manager, then choose “System FFmpeg” (ffmpeg and ffprobe on PATH):\nAlpine: apk add ffmpeg\nDebian/Ubuntu: sudo apt install ffmpeg\nFedora/RHEL: sudo dnf install ffmpeg\nArch: sudo pacman -S ffmpeg",
+    "Zainstaluj FFmpeg z menedżera pakietów, a potem wybierz „System FFmpeg” (ffmpeg i ffprobe w PATH):\nAlpine: apk add ffmpeg\nDebian/Ubuntu: sudo apt install ffmpeg\nFedora/RHEL: sudo dnf install ffmpeg\nArch: sudo pacman -S ffmpeg",
+    "Installez FFmpeg avec le gestionnaire de paquets, puis choisissez « System FFmpeg » (ffmpeg et ffprobe dans le PATH) :\nAlpine : apk add ffmpeg\nDebian/Ubuntu : sudo apt install ffmpeg\nFedora/RHEL : sudo dnf install ffmpeg\nArch : sudo pacman -S ffmpeg",
+    "Instala FFmpeg con el gestor de paquetes y después elige «System FFmpeg» (ffmpeg y ffprobe en PATH):\nAlpine: apk add ffmpeg\nDebian/Ubuntu: sudo apt install ffmpeg\nFedora/RHEL: sudo dnf install ffmpeg\nArch: sudo pacman -S ffmpeg",
+    "FFmpeg’i paket yöneticisiyle kur, sonra „System FFmpeg” seç (PATH içindeki ffmpeg ve ffprobe):\nAlpine: apk add ffmpeg\nDebian/Ubuntu: sudo apt install ffmpeg\nFedora/RHEL: sudo dnf install ffmpeg\nArch: sudo pacman -S ffmpeg",
+    "请通过软件包管理器安装 FFmpeg，然后选择“System FFmpeg”（PATH 中的 ffmpeg 和 ffprobe）：\nAlpine: apk add ffmpeg\nDebian/Ubuntu: sudo apt install ffmpeg\nFedora/RHEL: sudo dnf install ffmpeg\nArch: sudo pacman -S ffmpeg",
+    "Установите FFmpeg через пакетный менеджер и затем выберите «System FFmpeg» (ffmpeg и ffprobe в PATH):\nAlpine: apk add ffmpeg\nDebian/Ubuntu: sudo apt install ffmpeg\nFedora/RHEL: sudo dnf install ffmpeg\nArch: sudo pacman -S ffmpeg",
+    "パッケージマネージャで FFmpeg を入れ、その後「System FFmpeg」を選んでください（PATH 上の ffmpeg と ffprobe）：\nAlpine: apk add ffmpeg\nDebian/Ubuntu: sudo apt install ffmpeg\nFedora/RHEL: sudo dnf install ffmpeg\nArch: sudo pacman -S ffmpeg"
+  ],
+  "Avalonia-Editor. Wiedergabe nutzt die Systembibliothek libvlc. Linux lädt geprüfte statische FFmpeg-Builds, sofern glibc 2.28 oder neuer verfügbar ist.": [
+    "Avalonia editor. Playback uses the system libvlc library. Linux downloads checked static FFmpeg builds when glibc 2.28 or newer is available.",
+    "Edytor Avalonia. Odtwarzanie korzysta z systemowej biblioteki libvlc. Linux pobiera sprawdzone statyczne buildy FFmpeg, gdy dostępne jest glibc 2.28 lub nowsze.",
+    "Éditeur Avalonia. La lecture utilise la bibliothèque système libvlc. Linux télécharge des builds FFmpeg statiques vérifiés lorsque glibc 2.28 ou plus récent est disponible.",
+    "Editor Avalonia. La reproducción usa la biblioteca del sistema libvlc. Linux descarga compilaciones estáticas de FFmpeg verificadas cuando hay glibc 2.28 o posterior.",
+    "Avalonia düzenleyici. Oynatma sistem libvlc kitaplığını kullanır. Linux, glibc 2.28 veya daha yenisi varsa doğrulanmış statik FFmpeg derlemelerini indirir.",
+    "Avalonia 编辑器。播放使用系统 libvlc 库。当 glibc 为 2.28 或更新版本时，Linux 会下载经过校验的静态 FFmpeg 构建。",
+    "Редактор Avalonia. Воспроизведение использует системную библиотеку libvlc. Linux загружает проверенные статические сборки FFmpeg, если доступен glibc 2.28 или новее.",
+    "Avalonia エディタ。再生はシステムの libvlc を使います。glibc 2.28 以降がある場合、Linux は検証済みの静的 FFmpeg ビルドをダウンロードします。"
+  ],
+  "System-FFmpeg": [
+    "System FFmpeg",
+    "Systemowy FFmpeg",
+    "FFmpeg système",
+    "FFmpeg del sistema",
+    "Sistem FFmpeg",
+    "系统 FFmpeg",
+    "Системный FFmpeg",
+    "システムの FFmpeg"
+  ],
+  "Qualitätsanalyse": [
+    "Quality analysis",
+    "Analiza jakości",
+    "Analyse de qualité",
+    "Análisis de calidad",
+    "Kalite analizi",
+    "质量分析",
+    "Анализ качества",
+    "品質分析"
+  ],
+  "Expertenoptionen": [
+    "Expert options",
+    "Opcje eksperckie",
+    "Options expertes",
+    "Opciones avanzadas",
+    "Uzman seçenekleri",
+    "专家选项",
+    "Экспертные параметры",
+    "詳細オプション"
+  ],
+  "Vorheriges Bild": [
+    "Previous frame",
+    "Poprzednia klatka",
+    "Image précédente",
+    "Fotograma anterior",
+    "Önceki kare",
+    "上一帧",
+    "Предыдущий кадр",
+    "前のフレーム"
+  ],
+  "Nächstes Bild": [
+    "Next frame",
+    "Następna klatka",
+    "Image suivante",
+    "Fotograma siguiente",
+    "Sonraki kare",
+    "下一帧",
+    "Следующий кадр",
+    "次のフレーム"
+  ],
+  "Untertitel exportiert.": [
+    "Subtitle exported.",
+    "Napisy wyeksportowane.",
+    "Sous-titres exportés.",
+    "Subtítulos exportados.",
+    "Altyazı dışa aktarıldı.",
+    "字幕已导出。",
+    "Субтитры экспортированы.",
+    "字幕を書き出しました。"
+  ],
+  "Encode-Vergleich · {0:0.000} s": [
+    "Encode comparison · {0:0.000} s",
+    "Porównanie kodowań · {0:0.000} s",
+    "Comparaison d’encodages · {0:0.000} s",
+    "Comparación de codificaciones · {0:0.000} s",
+    "Kodlama karşılaştırması · {0:0.000} sn",
+    "编码对比 · {0:0.000} 秒",
+    "Сравнение кодирований · {0:0.000} с",
+    "エンコード比較 · {0:0.000} 秒"
+  ],
+  "Expertenoptionen übernommen.": [
+    "Expert options applied.",
+    "Zastosowano opcje eksperckie.",
+    "Options expertes appliquées.",
+    "Opciones avanzadas aplicadas.",
+    "Uzman seçenekleri uygulandı.",
+    "已应用专家选项。",
+    "Экспертные параметры применены.",
+    "詳細オプションを適用しました。"
+  ],
+  "Dieser Encoder hat keine zusätzlichen Expertenoptionen.": [
+    "This encoder has no extra expert options.",
+    "Ten enkoder nie ma dodatkowych opcji eksperckich.",
+    "Cet encodeur n’a pas d’options expertes supplémentaires.",
+    "Este codificador no tiene opciones avanzadas adicionales.",
+    "Bu kodlayıcının ek uzman seçeneği yok.",
+    "此编码器没有额外的专家选项。",
+    "У этого кодировщика нет дополнительных экспертных параметров.",
+    "このエンコーダに追加の詳細オプションはありません。"
+  ],
+  "Vorschaubild": [
+    "Thumbnail",
+    "Miniatura",
+    "Miniature",
+    "Miniatura",
+    "Küçük resim",
+    "缩略图",
+    "Миниатюра",
+    "サムネイル"
+  ],
+  "Einen Job auswählen.": [
+    "Select a job.",
+    "Wybierz zadanie.",
+    "Sélectionnez une tâche.",
+    "Selecciona un trabajo.",
+    "Bir iş seç.",
+    "请选择一个任务。",
+    "Выберите задание.",
+    "ジョブを選択してください。"
   ]
 }
