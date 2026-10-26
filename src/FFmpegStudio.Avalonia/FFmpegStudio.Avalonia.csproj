@@ -11,6 +11,9 @@
     <Description>Avalonia shell for PixelPeeker. Editor, system-libvlc playback and Linux FFmpeg acquisition.</Description>
   </PropertyGroup>
   <ItemGroup>
+    <Content Include="../../LICENSE" Link="LICENSE" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../../licenses/**" Link="licenses/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../../THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" />
     <AvaloniaResource Include="../FFmpegStudio.Desktop/Assets/PixelPeeker.png" Link="Assets/PixelPeeker.png" />
     <ProjectReference Include="../FFmpegStudio.Shared/FFmpegStudio.Shared.csproj" />
     <PackageReference Include="Avalonia" Version="12.1.4" />

@@ -2,7 +2,7 @@
 
 Navigation guide for small changes. Start with the feature table, then read only the relevant implementation and tests.
 Paths are relative to this project root. Source projects/namespaces retain `FFmpegStudio`; the desktop executable is `PixelPeeker.exe`.
-Verified against source on 2026-10-26 (0.10.39, Avalonia editor features and Linux libc gate). Update locations when structure changes, not after every UI tweak.
+Verified against source on 2026-10-26 (0.10.41, Avalonia editor features, Linux libc gate, and GPL-3.0-or-later). Update locations when structure changes, not after every UI tweak.
 
 ## 1. Architecture overview
 
@@ -29,7 +29,7 @@ Verified against source on 2026-10-26 (0.10.39, Avalonia editor features and Lin
 | `src/FFmpegStudio.Infrastructure` | Runtime services; several files contain multiple related service classes (see feature table). `PlatformServices.cs` selects Windows or portable process control. |
 | `src/FFmpegStudio.Shared` | `EditorViewModel`, `EncoderChoices`, `CutEditing`, `EncodeCommandPreview`, `EditorFeatures` (settings, test encode, analysis text), `EncodeComparisonSession`, `IPlaybackSession`, `LibraryViewModel`, `StudioServices`. |
 | `src/FFmpegStudio.Desktop` | Main window, view-model partials, dialogs, custom controls, playback and published-app smoke helpers. |
-| `src/FFmpegStudio.Avalonia` | Avalonia editor window, system-libvlc playback, settings/comparison/analysis dialogs and startup. Binds to `EditorViewModel`. |
+| `src/FFmpegStudio.Avalonia` | Avalonia editor window, system-libvlc playback, settings/comparison/analysis dialogs and startup. Binds to `EditorViewModel`. The build copies `LICENSE`, `THIRD-PARTY-NOTICES.md` and `licenses/` next to the executable, same as the WPF project. |
 | `src/FFmpegStudio.Desktop/Themes/Studio.xaml` | Shared WPF styles/templates and dynamic brush resources. |
 | `src/FFmpegStudio.Desktop/Assets` | App icon/logo and image-generation prompt; see [branding notes](docs/BRANDING.md). |
 | `tests/FFmpegStudio.Tests`, `tests/FFmpegStudio.Desktop.Tests`, `tests/FFmpegStudio.Avalonia.Tests` | Core/service tests, native WPF interaction regression test, and a headless Avalonia window test. |

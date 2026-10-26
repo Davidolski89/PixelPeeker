@@ -1,6 +1,8 @@
 # Third-party notices
 
-The portable Windows application includes or depends on the following third-party software. The listed package versions are the versions restored for this release. License texts and Microsoft's accompanying third-party notices are in the `licenses` directory.
+PixelPeeker itself is licensed under the GNU General Public License v3.0 or later (GPL-3.0-or-later). Copyright 2026 David Nagel. The full text is in `LICENSE`.
+
+The portable Windows application includes or depends on the following third-party software. The listed package versions are the versions restored for this release. License texts and Microsoft's accompanying third-party notices are in the `licenses` directory. Each component below keeps its own license.
 
 | Component | Version | License | Copyright / source |
 | --- | --- | --- | --- |

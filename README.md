@@ -16,7 +16,7 @@ Install the .NET 10 SDK and Windows Desktop targeting pack, then run Build.ps1. 
 
 Publishing runs the tests by default. Use `Publish.ps1 -SkipTests` only when the same source has already passed its relevant tests in a separate run.
 
-Open FFmpegStudio.sln in Visual Studio. The Windows executable built from source is src/FFmpegStudio.Desktop/bin/Release/net10.0-windows/PixelPeeker.exe. The Avalonia shell is src/FFmpegStudio.Avalonia/bin/Release/net10.0/PixelPeeker.Avalonia.
+Open FFmpegStudio.sln in Visual Studio. The Windows executable built from source is src/FFmpegStudio.Desktop/bin/Release/net10.0-windows/PixelPeeker.exe. The Avalonia shell is src/FFmpegStudio.Avalonia/bin/Release/net10.0/PixelPeeker.Avalonia. Both outputs copy LICENSE, THIRD-PARTY-NOTICES.md and licenses/ beside the executable.
 
 ## What works
 
@@ -130,3 +130,7 @@ The app references CommunityToolkit.Mvvm (MIT), Microsoft.Extensions.DependencyI
 dotnet test FFmpegStudio.sln -c Release exercises parsing, scaling, stream mapping, bitrate and quality rules, capability detection, update metadata, download integrity, archive path safety, queue recovery and preset remapping. The integration runner creates media and exercises actual encoding, sensors, a GPU and the installed FFmpeg build; see tools/FFmpegStudio.Verify.
 
 The solution also contains native WPF regression tests in tests/FFmpegStudio.Desktop.Tests. These run real controls on an STA dispatcher and exercise encoder changes, presets, switching media, audio and subtitle selectors, capability refresh, custom audio quality, invalid scaling, themes and shutdown. They use isolated temporary settings. Optionally set FFMPEG_STUDIO_TEST_DATA to an existing test-data folder containing a managed FFmpeg installation to exercise every encoder discovered in that actual build as well.
+
+## License
+
+PixelPeeker is licensed under the GNU General Public License v3.0 or later. Copyright 2026 David Nagel. You may redistribute and modify this program under the terms of version 3 of that license, or any later version published by the Free Software Foundation. The full license text is in [LICENSE](LICENSE).
