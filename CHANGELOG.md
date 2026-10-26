@@ -1,5 +1,11 @@
 # Änderungen
 
+## 0.10.42 – 26. Oktober 2026
+
+- Die Avalonia-Oberfläche schließt die offenen Lücken zur Windows-Ansicht: Filmstreifen, Verfügbarkeitsspur und Fokusbild im Vergleich, Achsen und sortierte Tabelle der Qualitätsanalyse, Themenmuster und Dateinamensvorschau der gewählten Datei, Audio-Bearbeitung, Hardwareanzeige, Ergebnistabelle, Tooltips und die bisherigen fest eingebauten Beschriftungen über den bestehenden Sprachkatalog.
+- Nach einem vollständig erfolgreichen Queue-Lauf zeigt Avalonia einen abbrechbaren Countdown. Energiesparen und Herunterfahren nutzen unter Linux `systemctl` und, falls das fehlt, `loginctl` (`suspend` bzw. `poweroff`). Fehlt beides, passiert nichts und der Status erklärt das. Windows behält `SetSuspendState` und `shutdown.exe`.
+- `Publish.ps1 -Linux` bzw. `Publish-Linux.ps1` erzeugt selbstständige linux-x64- und linux-arm64-Ordner unter `artifacts/portable-linux-<arch>` und `artifacts/portable-linux-<arch>-<version>`, dazu `PixelPeeker-<version>-linux-<arch>.tar.gz` und ein AppImage mit `.desktop`-Datei und Symbol. LICENSE, THIRD-PARTY-NOTICES.md und licenses/ liegen bei. libvlc wird nicht mitgeliefert; die Wiedergabe lädt die Distributionsbibliothek. FFmpeg bleibt ein Laufzeit-Download oder ein Paar im PATH. Die CI lädt die Pakete als Workflow-Artefakte hoch und prüft das x64-Archiv und das x64-AppImage mit `--smoke`. Es entsteht kein GitHub Release.
+
 ## 0.10.41 – 26. Oktober 2026
 
 - GitHub Actions (`.github/workflows/ci.yml`) prüft Pull Requests und Pushes auf `main`. Windows baut `FFmpegStudio.sln` in Release und führt die Testprojekte aus, einschließlich der STA-Oberflächentests. Ubuntu baut `FFmpegStudio.Linux.slnf`, führt deren Tests aus und startet die Avalonia-Oberfläche mit `--smoke`. FFmpeg- und GPU-Integrationsläufe bleiben aus, solange `FFMPEG_STUDIO_TEST_DATA` und `PIXELPEEKER_LIVE_FFMPEG` nicht gesetzt sind.

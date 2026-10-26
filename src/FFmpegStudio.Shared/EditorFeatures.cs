@@ -6,6 +6,78 @@ using FFmpegStudio.Infrastructure;
 
 namespace FFmpegStudio.Shared;
 
+public static class QualityChart
+{
+    public static double? Value(QualityFrame frame, string metric) => metric switch
+    {
+        "SSIM" => frame.Ssim,
+        "PSNR" => frame.Psnr,
+        _ => frame.Vmaf
+    };
+
+    public static IReadOnlyList<QualityFrame> Sorted(IEnumerable<QualityFrame> frames, string metric) =>
+        frames.OrderBy(frame => Value(frame, metric) ?? double.PositiveInfinity).ThenBy(frame => frame.Seconds).ToArray();
+
+    public static IReadOnlyList<double> Axis(double min, double max, int steps = 4)
+    {
+        if (steps < 1) steps = 1;
+        if (!double.IsFinite(min) || !double.IsFinite(max)) return [];
+        if (Math.Abs(max - min) < 1e-9) return [min];
+        return Enumerable.Range(0, steps + 1).Select(index => min + (max - min) * index / steps).ToArray();
+    }
+}
+
+public static class FileNamePreview
+{
+    public static string Of(MediaInfo? media, EncodingOptions? options, FileNamingSettings naming, DateTimeOffset? timestamp = null)
+    {
+        if (media?.Video is null || options is null) return L.T("Eine Videodatei auswählen.");
+        var clone = Json.Clone(options);
+        if (naming.Enabled) clone.FileNamePattern = FileNaming.Pattern(naming);
+        return FileNaming.Render(media, clone, clone.FileNamePattern, timestamp) + "." + clone.Container;
+    }
+}
+
+public static class HardwareReadout
+{
+    public static string Format(SensorSnapshot snapshot)
+    {
+        static string N(double? value, string suffix = " %") => value.HasValue ? $"{value:0.0}{suffix}" : L.T("nicht verfügbar");
+        return $"CPU {N(snapshot.CpuPercent)}  ·  RAM {N(snapshot.RamPercent)}" + (snapshot.Gpus.Count == 0
+            ? L.T("  ·  NVIDIA: nicht verfügbar")
+            : "\n" + string.Join("\n", snapshot.Gpus.Select(gpu => L.F($"GPU {gpu.Index}: {gpu.Name} · Treiber {gpu.Driver} · GPU {N(gpu.Utilization)} · NVENC {N(gpu.EncoderPercent)} · NVDEC {N(gpu.DecoderPercent)} · VRAM {N(gpu.MemoryUsedMiB, " MiB")}/{N(gpu.MemoryTotalMiB, " MiB")} · {N(gpu.Temperature, " °C")} · {N(gpu.Power, " W")}"))));
+    }
+}
+
+public static class AudioTrackEditing
+{
+    public static readonly string[] Encoders = ["aac", "libopus", "libmp3lame", "flac"];
+    public static IReadOnlyList<TrackAction> Actions { get; } = [TrackAction.Kopieren, TrackAction.Encodieren, TrackAction.Entfernen];
+}
+
+public sealed record EncodingResultRow(string Source, string Encoder, string Preset, string Raster, string Clip, string MiB, string Seconds, string Speed, string Bitrate, string Vmaf, string Ssim, string Psnr);
+
+public static class EncodingResults
+{
+    public static IReadOnlyList<string> Sources(IEnumerable<EncodingJob> jobs) =>
+        jobs.Where(job => job.Status == JobStatus.Abgeschlossen).Select(job => job.Source.Path).Distinct().ToArray();
+
+    public static IReadOnlyList<EncodingResultRow> Rows(IEnumerable<EncodingJob> jobs, string? source) =>
+        jobs.Where(job => job.Status == JobStatus.Abgeschlossen && (source is null || job.Source.Path == source)).Select(job => new EncodingResultRow(
+            job.Source.Path,
+            job.Options.Video.Encoder,
+            job.Options.Video.Preset ?? "",
+            $"{job.OutputInfo?.Video?.Width} × {job.OutputInfo?.Video?.Height}",
+            job.Options.ClipStart.HasValue ? $"{job.Options.ClipStart:0.###} + {job.Options.ClipDuration:0.###}" : L.T("Vollständig"),
+            (job.OutputBytes / 1048576d).ToString("0.00", CultureInfo.InvariantCulture),
+            (job.EndedAt - job.StartedAt)?.TotalSeconds.ToString("0.0", CultureInfo.InvariantCulture) ?? "",
+            job.Speed,
+            (job.OutputInfo?.BitRate / 1000d)?.ToString("0", CultureInfo.InvariantCulture) ?? "",
+            job.Analysis?.Vmaf?.ToString("0.###", CultureInfo.InvariantCulture) ?? "",
+            job.Analysis?.Ssim?.ToString("0.######", CultureInfo.InvariantCulture) ?? "",
+            job.Analysis?.Psnr?.ToString("0.###", CultureInfo.InvariantCulture) ?? "")).ToArray();
+}
+
 public static class TestEncodePlan
 {
     public static EncodingOptions Create(EncodingOptions source, double previewSeconds, double testSeconds, double? mediaDuration, string cacheDirectory)

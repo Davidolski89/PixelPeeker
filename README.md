@@ -4,7 +4,7 @@
 
 Native Windows 10/11 x64 video conversion built with WPF and .NET 10. The first usable release imports media, inspects it with ffprobe, detects encoders and filters in the installed FFmpeg build, configures each audio and subtitle stream, and runs real software or NVIDIA NVENC jobs. Its queue and settings persist in SQLite and JSON.
 
-**Linux / Avalonia (in progress).** Phase 1 extracts the portable services into `net10.0` libraries (`FFmpegStudio.Core`, `FFmpegStudio.Infrastructure`, `FFmpegStudio.Shared`) and adds an Avalonia desktop project, `src/FFmpegStudio.Avalonia`. That shell builds on Linux and Windows and reuses `LibraryViewModel`: open a media file, show ffprobe details when FFmpeg is already available, and list the saved queue. Playback, the full editor and downloading FFmpeg on Linux are later phases. The WPF app remains the complete Windows product. On Linux, build the portable subset with `dotnet build FFmpegStudio.Linux.slnf` and run `dotnet run --project src/FFmpegStudio.Avalonia/FFmpegStudio.Avalonia.csproj`. The WPF project targets `net10.0-windows` and does not build on Linux.
+**Linux / Avalonia.** `FFmpegStudio.Core`, `FFmpegStudio.Infrastructure` and `FFmpegStudio.Shared` are portable `net10.0` libraries. `src/FFmpegStudio.Avalonia` is the cross-platform shell: editor, queue, comparison, quality analysis, system-libvlc playback and the managed Linux FFmpeg install. The WPF app remains the complete Windows product. On Linux, build with `dotnet build FFmpegStudio.Linux.slnf` and run `dotnet run --project src/FFmpegStudio.Avalonia/FFmpegStudio.Avalonia.csproj`. The WPF project targets `net10.0-windows` and does not build on Linux.
 
 Version 0.10.23 merges **Compare frames** and **Compare encodes** into one **Compare** button and maximized window. Select one completed job for source versus encode, or two jobs for A/B with an optional source reference. The unified viewer retains hold-Space reference preview, five sample frames, pixel zoom, synchronized panning and external files. Reference filters can match crop, scale and other spatial settings from encode A. Reopening preserves the comparison. All nine languages, remembered codec settings and accurate seeking remain available. See [CHANGELOG.md](CHANGELOG.md).
 
@@ -15,6 +15,8 @@ The interface, dialogs, selection labels, application messages and tooltips supp
 Install the .NET 10 SDK and Windows Desktop targeting pack, then run Build.ps1. This builds the Visual Studio solution and runs the unit tests. Run Publish.ps1 to build a self-contained x64 Windows release in artifacts/portable-win-x64-<version> and update artifacts/portable-win-x64 with the same release. Publishing may need to download the Windows runtime pack the first time.
 
 Publishing runs the tests by default. Use `Publish.ps1 -SkipTests` only when the same source has already passed its relevant tests in a separate run.
+
+On Linux, PowerShell 7 runs the same publisher with `Publish.ps1 -Linux` or `Publish-Linux.ps1`. That builds self-contained Avalonia packages for linux-x64 and linux-arm64. See [Linux packages](#linux-packages).
 
 Open FFmpegStudio.sln in Visual Studio. The Windows executable built from source is src/FFmpegStudio.Desktop/bin/Release/net10.0-windows/PixelPeeker.exe. The Avalonia shell is src/FFmpegStudio.Avalonia/bin/Release/net10.0/PixelPeeker.Avalonia. Both outputs copy LICENSE, THIRD-PARTY-NOTICES.md and licenses/ beside the executable.
 
@@ -121,11 +123,27 @@ Both publishers allow downloading the builds from those public URLs. PixelPeeker
 
 Linux playback does not bundle VLC. The Avalonia shell loads the system `libvlc` (for example the distro `libvlc5` and `vlc-plugin-base` packages). See [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
+### Linux packages
+
+`Publish-Linux.ps1` (or `Publish.ps1 -Linux`) publishes `src/FFmpegStudio.Avalonia` self-contained for `linux-x64` and `linux-arm64`. It does not use a single file, so the native Avalonia libraries stay next to `PixelPeeker.Avalonia`. Each architecture gets:
+
+- `artifacts/portable-linux-<arch>-<version>/` and the current copy `artifacts/portable-linux-<arch>/`
+- `artifacts/PixelPeeker-<version>-linux-<arch>.tar.gz` and `artifacts/PixelPeeker-linux-<arch>.tar.gz`
+- `artifacts/PixelPeeker-<version>-linux-<arch>.AppImage` and `artifacts/PixelPeeker-linux-<arch>.AppImage`
+
+The folder, the tarball and the AppImage include `LICENSE`, `THIRD-PARTY-NOTICES.md`, `licenses/`, the PNG icon and `pixelpeeker.desktop`. The AppImage is an AppDir (`AppRun`, the desktop file, `pixelpeeker.png`) packed with the upstream `appimagetool` runtime. That runtime is a build tool's MIT-licensed bootstrap and is not a copy of VLC or FFmpeg.
+
+libvlc is not inside the package. VLC plugins on a distribution can be GPL, and the shell already loads whatever `libvlc` the system provides. Install the distro packages before playback, for example Ubuntu `libvlc5` and `vlc-plugin-base`. The editor, queue and `--smoke` start do not need libvlc. If the library is missing, opening a clip reports that playback is unavailable.
+
+FFmpeg is not inside the package either. On first use, when automatic install is enabled and the host is glibc 2.28 or newer on x64 or arm64, the app downloads the pinned static GPL build described above and checks its checksum. Otherwise choose `ffmpeg` and `ffprobe` from `PATH`. musl and older glibc never download the static build; they show the package-manager commands instead.
+
+`Publish-Linux.ps1` runs the Linux tests unless `-SkipTests` is passed, then starts the x64 tarball and the x64 AppImage with `--smoke` under `xvfb-run` when that command exists. An arm64 package is not executed on an x64 machine. This is a local or CI artifact, not a GitHub Release.
+
 The app references CommunityToolkit.Mvvm (MIT), Microsoft.Extensions.DependencyInjection (MIT), Microsoft.Data.Sqlite (MIT), SharpCompress (MIT) and SQLitePCLRaw (Apache 2.0; SQLite engine code is public domain). The portable publish includes the applicable runtime licenses and third-party notices in `licenses/`; see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). xUnit (Apache 2.0) is a development and test dependency and is not part of the desktop app. Restored direct and transitive dependencies are listed by NuGet with dotnet list package --include-transitive.
 
 ## Tests
 
-[GitHub Actions](.github/workflows/ci.yml) runs on pull requests and on pushes to `main`. `windows-latest` restores and builds `FFmpegStudio.sln` in Release, including the WPF desktop project, then runs `dotnet test` for every test project in that solution (service tests, the off-screen STA tests in `FFmpegStudio.Desktop.Tests`, and the Avalonia headless tests). `ubuntu-latest` builds `FFmpegStudio.Linux.slnf`, runs those tests, and starts the Avalonia shell with `--smoke` under Xvfb. The workflow installs the SDK named in `global.json`, caches NuGet packages, and does not publish. Paths that need a real FFmpeg build or a GPU are not part of CI: they return immediately unless `FFMPEG_STUDIO_TEST_DATA` or `PIXELPEEKER_LIVE_FFMPEG` is set, and the workflow sets neither. `tools/FFmpegStudio.Verify` is a console tool, not a test project, so CI does not run it.
+[GitHub Actions](.github/workflows/ci.yml) runs on pull requests and on pushes to `main`. `windows-latest` restores and builds `FFmpegStudio.sln` in Release, including the WPF desktop project, then runs `dotnet test` for every test project in that solution (service tests, the off-screen STA tests in `FFmpegStudio.Desktop.Tests`, and the Avalonia headless tests). `ubuntu-latest` builds `FFmpegStudio.Linux.slnf`, runs those tests, and starts the Avalonia shell with `--smoke` under Xvfb. A second Ubuntu job, after those tests, runs `Publish-Linux.ps1 -SkipTests` and uploads the tar.gz and AppImage files as workflow artifacts. It does not create a GitHub Release and it does not run the Windows `Publish.ps1` path. The workflow installs the SDK named in `global.json`, caches NuGet packages, and uses no secrets. Paths that need a real FFmpeg build or a GPU are not part of CI: they return immediately unless `FFMPEG_STUDIO_TEST_DATA` or `PIXELPEEKER_LIVE_FFMPEG` is set, and the workflow sets neither. `tools/FFmpegStudio.Verify` is a console tool, not a test project, so CI does not run it.
 
 dotnet test FFmpegStudio.sln -c Release exercises parsing, scaling, stream mapping, bitrate and quality rules, capability detection, update metadata, download integrity, archive path safety, queue recovery and preset remapping. The integration runner creates media and exercises actual encoding, sensors, a GPU and the installed FFmpeg build; see tools/FFmpegStudio.Verify.
 

@@ -1,8 +1,14 @@
 param(
     # Only use after the same source has already passed its relevant tests.
-    [switch]$SkipTests
+    [switch]$SkipTests,
+    # Build the Avalonia linux-x64 and linux-arm64 tar.gz and AppImage packages instead of the Windows EXE.
+    [switch]$Linux
 )
 $ErrorActionPreference = 'Stop'
+if ($Linux) {
+    & (Join-Path $PSScriptRoot 'Publish-Linux.ps1') -SkipTests:$SkipTests
+    return
+}
 $projectPath = Join-Path $PSScriptRoot 'src/FFmpegStudio.Desktop/FFmpegStudio.Desktop.csproj'
 $solutionPath = Join-Path $PSScriptRoot 'FFmpegStudio.sln'
 $latestPublishPath = Join-Path $PSScriptRoot 'artifacts/portable-win-x64'

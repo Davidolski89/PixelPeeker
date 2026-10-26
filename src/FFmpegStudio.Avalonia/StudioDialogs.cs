@@ -34,7 +34,7 @@ internal static class PreviewBitmaps
 
 public static class StudioDialogs
 {
-    public static async Task<AppSettings?> EditSettingsAsync(Window owner, AppSettings draft)
+    public static async Task<AppSettings?> EditSettingsAsync(Window owner, AppSettings draft, MediaInfo? media = null, EncodingOptions? options = null)
     {
         var originalTheme = draft.ThemeId;
         var originalDark = draft.DarkMode;
@@ -45,7 +45,7 @@ public static class StudioDialogs
         tabs.Items.Add(new TabItem { Header = L.T("Allgemein"), Content = GeneralTab(draft) });
         tabs.Items.Add(new TabItem { Header = L.T("Darstellung"), Content = ThemeTab(draft) });
         tabs.Items.Add(new TabItem { Header = L.T("Ordnerüberwachung"), Content = WatchTab(owner, draft) });
-        tabs.Items.Add(new TabItem { Header = L.T("Dateinamen"), Content = NamingTab(draft) });
+        tabs.Items.Add(new TabItem { Header = L.T("Dateinamen"), Content = NamingTab(draft, media, options) });
         var save = new Button { Content = L.T("Speichern"), MinWidth = 96 };
         var cancel = new Button { Content = L.T("Abbrechen"), MinWidth = 96 };
         save.Click += (_, _) =>
@@ -154,25 +154,71 @@ public static class StudioDialogs
 
     public static async Task ShowComparisonAsync(Window owner, EncodeComparisonSession session, Func<Task<EncodeComparisonInput?>> openFile)
     {
-        var dialog = Window(L.T("Encode-Vergleich"), 980, 700, owner);
+        var dialog = Window(L.T("Encode-Vergleich"), 1100, 780, owner);
         var imageA = new Image { Stretch = Stretch.Uniform };
         var imageB = new Image { Stretch = Stretch.Uniform };
         var original = new Image { Stretch = Stretch.Uniform };
-        void Show()
+        var focusImage = new Image { Stretch = Stretch.Uniform };
+        var focusCaption = new TextBlock { FontWeight = FontWeight.SemiBold, Margin = new global::Avalonia.Thickness(6) };
+        var samples = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+        var stripA = new ComparisonAvailabilityView();
+        var stripB = new ComparisonAvailabilityView();
+        void ShowFrames()
         {
             imageA.Source = PreviewBitmaps.Load(session.PathA);
             imageB.Source = PreviewBitmaps.Load(session.PathB);
             original.Source = PreviewBitmaps.Load(session.OriginalPath);
+            focusImage.Source = PreviewBitmaps.Load(session.FocusPath);
             var scale = new ScaleTransform(session.Zoom, session.Zoom);
             imageA.RenderTransform = scale;
             imageB.RenderTransform = new ScaleTransform(session.Zoom, session.Zoom);
             original.RenderTransform = new ScaleTransform(session.Zoom, session.Zoom);
+            focusImage.RenderTransform = new ScaleTransform(session.Zoom, session.Zoom);
+            focusCaption.Text = L.T("Fokus") + " · " + session.Focus switch
+            {
+                ComparisonFocus.Original => L.T("Original"),
+                ComparisonFocus.B => "B",
+                _ => "A"
+            };
+            var duration = session.SelectedA?.Input.Job?.Source.Duration ?? session.SelectedA?.Input.Media.Duration ?? 1;
+            if (duration <= 0 || !double.IsFinite(duration)) duration = 1;
+            stripA.Duration = duration;
+            stripB.Duration = duration;
+            stripA.Position = session.Position;
+            stripB.Position = session.Position;
+            stripA.Intervals = session.CoverageA;
+            stripB.Intervals = session.CoverageB;
+            stripB.IsVisible = session.CompareTwo;
+            stripA.InvalidateVisual();
+            stripB.InvalidateVisual();
+        }
+        void RebuildSamples()
+        {
+            samples.Children.Clear();
+            foreach (var shot in session.Samples)
+            {
+                var thumb = new Image { Source = PreviewBitmaps.Load(shot.PathA ?? shot.OriginalPath), Width = 112, Height = 63, Stretch = Stretch.Uniform };
+                var button = new Button
+                {
+                    Content = new StackPanel { Spacing = 2, Children = { thumb, new TextBlock { Text = shot.Label, HorizontalAlignment = HorizontalAlignment.Center } } },
+                    Padding = new global::Avalonia.Thickness(2)
+                };
+                var current = shot;
+                button.Click += (_, _) => { session.SelectSample(current); ShowFrames(); };
+                samples.Children.Add(button);
+            }
         }
         session.PropertyChanged += (_, change) =>
         {
-            if (change.PropertyName is nameof(EncodeComparisonSession.PathA) or nameof(EncodeComparisonSession.PathB) or nameof(EncodeComparisonSession.OriginalPath) or nameof(EncodeComparisonSession.Zoom))
-                Dispatcher.UIThread.Post(Show);
+            if (change.PropertyName is nameof(EncodeComparisonSession.PathA) or nameof(EncodeComparisonSession.PathB)
+                or nameof(EncodeComparisonSession.OriginalPath) or nameof(EncodeComparisonSession.Zoom)
+                or nameof(EncodeComparisonSession.FocusPath) or nameof(EncodeComparisonSession.Position)
+                or nameof(EncodeComparisonSession.SelectedA) or nameof(EncodeComparisonSession.SelectedB)
+                or nameof(EncodeComparisonSession.OffsetA) or nameof(EncodeComparisonSession.OffsetB)
+                or nameof(EncodeComparisonSession.CompareTwo))
+                Dispatcher.UIThread.Post(ShowFrames);
         };
+        session.Samples.CollectionChanged += (_, _) => Dispatcher.UIThread.Post(RebuildSamples);
         var choiceA = new ComboBox { ItemsSource = session.Choices, SelectedItem = session.SelectedA };
         var choiceB = new ComboBox { ItemsSource = session.Choices, SelectedItem = session.SelectedB };
         choiceA.SelectionChanged += (_, _) => session.SelectedA = choiceA.SelectedItem as EncodeComparisonChoice;
@@ -195,6 +241,10 @@ public static class StudioDialogs
         var load = new Button { Content = L.T("Vergleichen") };
         var previous = new Button { Content = L.T("Vorheriges Bild") };
         var next = new Button { Content = L.T("Nächstes Bild") };
+        var sampleButton = new Button { Content = L.T("Beispielbilder laden") };
+        var focusA = new Button { Content = "A" };
+        var focusB = new Button { Content = "B" };
+        var focusOriginal = new Button { Content = L.T("Original") };
         var close = new Button { Content = L.T("Schließen") };
         open.Click += async (_, _) =>
         {
@@ -211,18 +261,38 @@ public static class StudioDialogs
         load.Click += async (_, _) => await session.LoadNearestAsync();
         previous.Click += async (_, _) => await session.LoadPreviousAsync();
         next.Click += async (_, _) => await session.LoadNextAsync();
+        sampleButton.Click += async (_, _) => await session.GenerateSamplesAsync();
+        focusA.Click += (_, _) => { session.Focus = ComparisonFocus.A; ShowFrames(); };
+        focusB.Click += (_, _) => { session.Focus = ComparisonFocus.B; ShowFrames(); };
+        focusOriginal.Click += (_, _) => { session.Focus = ComparisonFocus.Original; ShowFrames(); };
+        async Task Seek(double seconds)
+        {
+            session.Position = seconds;
+            position.Value = (decimal)seconds;
+            await session.LoadNearestAsync();
+        }
+        stripA.SeekRequested += seconds => _ = Seek(seconds);
+        stripB.SeekRequested += seconds => _ = Seek(seconds);
         close.Click += (_, _) => dialog.Close();
         var status = new TextBlock { TextWrapping = TextWrapping.Wrap };
         status.Bind(TextBlock.TextProperty, new global::Avalonia.Data.Binding(nameof(EncodeComparisonSession.Status)) { Source = session });
-        var images = new Grid { ColumnDefinitions = new ColumnDefinitions("*,*,*"), ColumnSpacing = 8 };
+        var images = new Grid { ColumnDefinitions = new ColumnDefinitions("*,*,*"), ColumnSpacing = 8, MinHeight = 180 };
         images.Children.Add(Frame(L.T("Original"), original));
-        Grid.SetColumn(images.Children[0], 0);
         var paneA = Frame("A", imageA);
         Grid.SetColumn(paneA, 1);
         images.Children.Add(paneA);
         var paneB = Frame("B", imageB);
         Grid.SetColumn(paneB, 2);
         images.Children.Add(paneB);
+        var focusPane = new Border
+        {
+            Background = new SolidColorBrush(Color.Parse("#080B10")),
+            MinHeight = 180,
+            Child = new DockPanel
+            {
+                Children = { Docked(Dock.Top, focusCaption), new Viewbox { Child = focusImage } }
+            }
+        };
         dialog.Content = new DockPanel
         {
             Margin = new global::Avalonia.Thickness(12),
@@ -234,45 +304,74 @@ public static class StudioDialogs
                     Children =
                     {
                         choiceA, choiceB,
-                        new WrapPanel { Orientation = Orientation.Horizontal, Children = { two, withOriginal, matched, Label(L.T("Zeit")), position, Label("A"), offsetA, Label("B"), offsetB, zoom } },
-                        new WrapPanel { Orientation = Orientation.Horizontal, Children = { open, load, previous, next, close } },
-                        status
+                        new WrapPanel { Orientation = Orientation.Horizontal, Children = { two, withOriginal, matched, Label(L.T("Zeit (s)")), position, Label("A"), offsetA, Label("B"), offsetB, zoom } },
+                        new WrapPanel { Orientation = Orientation.Horizontal, Children = { open, load, previous, next, sampleButton, focusA, focusB, focusOriginal, close } },
+                        status,
+                        Label(L.T("Beispielbilder")),
+                        new ScrollViewer { HorizontalScrollBarVisibility = global::Avalonia.Controls.Primitives.ScrollBarVisibility.Auto, VerticalScrollBarVisibility = global::Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled, Content = samples },
+                        Label("A · " + L.T("Verfügbarkeit auf der Quellzeitachse. Vollfläche: vorhanden. Schraffiert: entfernt oder außerhalb des Ausschnitts. Gepunktet: Schnittzuordnung unbekannt. Klicken, um zu dieser Quellposition zu springen. Bei externen Dateien sind nur Dateigrenzen und Zeitversatz bekannt.")),
+                        stripA,
+                        stripB
                     }
                 }),
-                images
+                new Grid
+                {
+                    ColumnDefinitions = new ColumnDefinitions("*,*"),
+                    ColumnSpacing = 8,
+                    Children = { images, focusPane }
+                }
             }
         };
+        Grid.SetColumn(focusPane, 1);
+        ShowFrames();
         await dialog.ShowDialog(owner);
     }
 
     public static async Task ShowAnalysisAsync(Window owner, QualityResult result)
     {
-        var dialog = Window(L.T("Qualitätsanalyse · gespeicherte Messwerte"), 860, 640, owner);
-        static string N(double? value) => value?.ToString("0.###") ?? L.T("nicht verfügbar");
+        var dialog = Window(L.T("Qualitätsanalyse · gespeicherte Messwerte"), 900, 720, owner);
+        static string N(double? value) => value?.ToString("0.###", CultureInfo.InvariantCulture) ?? L.T("nicht verfügbar");
         var header = new TextBlock { Text = $"VMAF {N(result.Vmaf)}    SSIM {N(result.Ssim)}    PSNR {N(result.Psnr)} dB", FontSize = 18, FontWeight = FontWeight.SemiBold, TextWrapping = TextWrapping.Wrap };
-        var canvas = new Canvas { Height = 180, Background = new SolidColorBrush(Color.Parse("#10151F")) };
+        var canvas = new Canvas { Height = 220, Background = new SolidColorBrush(Color.Parse("#10151F")) };
         var metric = new ComboBox { ItemsSource = new[] { "VMAF", "SSIM", "PSNR" }, SelectedIndex = result.Vmaf.HasValue ? 0 : result.Ssim.HasValue ? 1 : 2, Width = 140 };
-        var rows = new TextBox { IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.NoWrap, FontFamily = new FontFamily("Consolas,monospace"), Height = 220 };
+        var rows = new ListBox { MaxHeight = 240 };
+        var axisNote = new TextBlock { Opacity = 0.8 };
         void Draw()
         {
             canvas.Children.Clear();
-            double? Value(QualityFrame frame) => metric.SelectedIndex switch { 1 => frame.Ssim, 2 => frame.Psnr, _ => frame.Vmaf };
-            var ranked = result.Frames.OrderBy(frame => Value(frame) ?? double.PositiveInfinity).ToList();
-            rows.Text = string.Join(Environment.NewLine, ranked.Take(40).Select(frame => $"{frame.Seconds:0.000}s  VMAF {N(frame.Vmaf)}  SSIM {N(frame.Ssim)}  PSNR {N(frame.Psnr)}"));
-            var series = result.Frames.Select((frame, index) => (index, Value: Value(frame))).Where(point => point.Value.HasValue).ToList();
-            if (series.Count == 0) return;
-            var min = series.Min(point => point.Value!.Value);
-            var max = series.Max(point => point.Value!.Value);
-            var span = Math.Max(0.0001, max - min);
-            var width = Math.Max(10, canvas.Bounds.Width);
-            var line = new global::Avalonia.Controls.Shapes.Polyline { Stroke = Brushes.White, StrokeThickness = 2, Points = [] };
-            foreach (var point in series)
+            var name = metric.SelectedItem as string ?? "VMAF";
+            var sorted = QualityChart.Sorted(result.Frames, name);
+            rows.ItemsSource = sorted.Select(frame => $"{frame.Seconds:0.000} s    VMAF {N(frame.Vmaf)}    SSIM {N(frame.Ssim)}    PSNR {N(frame.Psnr)}").ToList();
+            var series = result.Frames.Select(frame => (frame.Seconds, Value: QualityChart.Value(frame, name))).Where(point => point.Value.HasValue && double.IsFinite(point.Value.Value)).ToList();
+            var width = Math.Max(120, canvas.Bounds.Width);
+            var height = canvas.Height;
+            var max = name switch { "SSIM" => 1d, "PSNR" => Math.Max(50, series.Count == 0 ? 50 : series.Max(point => point.Value!.Value)), _ => 100d };
+            foreach (var tick in QualityChart.Axis(0, max, 4))
             {
-                var x = series.Count == 1 ? width / 2 : point.index * (width - 8) / Math.Max(1, result.Frames.Count - 1);
-                var y = 8 + (1 - (point.Value!.Value - min) / span) * 160;
-                line.Points.Add(new global::Avalonia.Point(x, y));
+                var y = 16 + (1 - tick / Math.Max(max, 0.0001)) * (height - 48);
+                canvas.Children.Add(new global::Avalonia.Controls.Shapes.Line { StartPoint = new global::Avalonia.Point(48, y), EndPoint = new global::Avalonia.Point(width - 12, y), Stroke = new SolidColorBrush(Color.Parse("#344155")), StrokeThickness = 1 });
+                var label = new TextBlock { Text = tick.ToString("0.##", CultureInfo.InvariantCulture), FontSize = 10, Foreground = Brushes.White };
+                Canvas.SetLeft(label, 2);
+                Canvas.SetTop(label, y - 7);
+                canvas.Children.Add(label);
             }
-            canvas.Children.Add(line);
+            if (series.Count > 0)
+            {
+                var timeMax = Math.Max(0.01, series.Max(point => point.Seconds));
+                var line = new global::Avalonia.Controls.Shapes.Polyline { Stroke = Brushes.White, StrokeThickness = 1.5, Points = [] };
+                foreach (var point in series)
+                {
+                    var x = 48 + point.Seconds / timeMax * (width - 64);
+                    var y = 16 + (1 - point.Value!.Value / Math.Max(max, 0.0001)) * (height - 48);
+                    line.Points.Add(new global::Avalonia.Point(x, y));
+                }
+                canvas.Children.Add(line);
+                var end = new TextBlock { Text = $"0 s → {timeMax:0.0} s", FontSize = 10, Foreground = Brushes.White };
+                Canvas.SetLeft(end, 48);
+                Canvas.SetTop(end, height - 18);
+                canvas.Children.Add(end);
+                axisNote.Text = name + " · 0 – " + max.ToString("0.##", CultureInfo.InvariantCulture);
+            }
         }
         metric.SelectionChanged += (_, _) => Draw();
         canvas.SizeChanged += (_, _) => Draw();
@@ -287,12 +386,109 @@ public static class StudioDialogs
             Margin = new global::Avalonia.Thickness(16),
             Children =
             {
-                Docked(Dock.Top, new StackPanel { Spacing = 8, Children = { header, new TextBlock { Text = result.Conditions, TextWrapping = TextWrapping.Wrap }, metric, canvas } }),
+                Docked(Dock.Top, new StackPanel
+                {
+                    Spacing = 8,
+                    Children =
+                    {
+                        header,
+                        new TextBlock { Text = result.Conditions, TextWrapping = TextWrapping.Wrap },
+                        metric,
+                        canvas,
+                        axisNote,
+                        new TextBlock { Text = L.T("Schwächste Frames zuerst · nach ausgewählter Metrik") + " · " + L.T("Zeit (s)") + " · VMAF · SSIM · PSNR" }
+                    }
+                }),
                 Docked(Dock.Bottom, new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { csv, json, close } }),
                 rows
             }
         };
         dialog.Opened += (_, _) => Draw();
+        await dialog.ShowDialog(owner);
+    }
+
+    public static async Task<bool> ConfirmCountdownAsync(Window owner, CompletionAction action)
+    {
+        var dialog = Window(L.T("Aktion nach Queue-Abschluss"), 560, 260, owner);
+        var remaining = SessionPower.CountdownSeconds;
+        var accepted = false;
+        var label = new TextBlock { FontSize = 18, TextWrapping = TextWrapping.Wrap };
+        void Update() => label.Text = L.F($"{L.EnumText(action)} in {remaining} Sekunden.\nAlle Jobs sind erfolgreich abgeschlossen.");
+        var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        timer.Tick += (_, _) =>
+        {
+            remaining--;
+            if (remaining <= 0)
+            {
+                accepted = true;
+                timer.Stop();
+                dialog.Close();
+                return;
+            }
+            Update();
+        };
+        dialog.Opened += (_, _) => timer.Start();
+        dialog.Closed += (_, _) => timer.Stop();
+        var cancel = new Button { Content = L.T("Aktion abbrechen"), MinWidth = 140 };
+        cancel.Click += (_, _) => dialog.Close();
+        Update();
+        dialog.Content = new StackPanel
+        {
+            Margin = new global::Avalonia.Thickness(24),
+            Spacing = 12,
+            Children =
+            {
+                new TextBlock { Text = SessionPower.Prompt(action), TextWrapping = TextWrapping.Wrap },
+                label,
+                cancel
+            }
+        };
+        await dialog.ShowDialog(owner);
+        return accepted;
+    }
+
+    public static async Task ShowResultsAsync(Window owner, IReadOnlyList<EncodingJob> jobs)
+    {
+        var dialog = Window(L.T("Encoding-Ergebnisse vergleichen"), 980, 640, owner);
+        var sources = EncodingResults.Sources(jobs);
+        var source = new ComboBox { ItemsSource = sources, SelectedIndex = sources.Count == 0 ? -1 : 0 };
+        var rows = new ListBox();
+        void Refresh()
+        {
+            var selected = source.SelectedItem as string;
+            var table = EncodingResults.Rows(jobs, selected);
+            rows.ItemsSource = table.Count == 0
+                ? new[] { L.T("Einen abgeschlossenen Test- oder vollständigen Encode auswählen.") }
+                : table.Select(row => string.Join("   ", new[]
+                {
+                    row.Encoder, row.Preset, row.Raster, row.Clip, row.MiB + " MiB", row.Seconds + " s", row.Speed, row.Bitrate + " kbit/s",
+                    "VMAF " + row.Vmaf, "SSIM " + row.Ssim, "PSNR " + row.Psnr
+                })).ToArray();
+        }
+        source.SelectionChanged += (_, _) => Refresh();
+        var close = new Button { Content = L.T("Schließen") };
+        close.Click += (_, _) => dialog.Close();
+        dialog.Content = new DockPanel
+        {
+            Margin = new global::Avalonia.Thickness(16),
+            Children =
+            {
+                Docked(Dock.Top, new StackPanel
+                {
+                    Spacing = 8,
+                    Children =
+                    {
+                        new TextBlock { Text = L.T("Ergebnisse derselben Quelldatei"), FontSize = 18, FontWeight = FontWeight.SemiBold },
+                        new TextBlock { Text = L.T("Qualitätswerte nur bei gleichem Ausschnitt, Bildformat, Zeitraster und Analysebedingungen direkt vergleichen. Fehlende Werte bleiben leer."), TextWrapping = TextWrapping.Wrap },
+                        new TextBlock { Text = L.T("Encoder") + " · " + L.T("Preset") + " · " + L.T("Raster") + " · " + L.T("Ausschnitt (s)") + " · MiB · " + L.T("Dauer (s)") + " · " + L.T("Tempo") + " · kbit/s · VMAF · SSIM · PSNR", TextWrapping = TextWrapping.Wrap },
+                        source
+                    }
+                }),
+                Docked(Dock.Bottom, close),
+                rows
+            }
+        };
+        Refresh();
         await dialog.ShowDialog(owner);
     }
 
@@ -328,16 +524,70 @@ public static class StudioDialogs
 
     private static Control ThemeTab(AppSettings draft)
     {
-        var themes = new ComboBox { ItemsSource = ThemeCatalog.All, SelectedItem = ThemeCatalog.Resolve(draft.ThemeId, draft.DarkMode) };
-        themes.ItemTemplate = new FuncDataTemplate<AppTheme>((theme, _) => new TextBlock { Text = theme is null ? "" : theme.Name + " · " + theme.Description });
-        themes.SelectionChanged += (_, _) =>
+        var panel = new WrapPanel { Orientation = Orientation.Horizontal };
+        void Mark()
         {
-            if (themes.SelectedItem is not AppTheme theme) return;
-            draft.ThemeId = theme.Id;
-            draft.DarkMode = theme.IsDark;
-            (global::Avalonia.Application.Current as App)?.ApplyTheme(draft);
+            foreach (var button in panel.Children.OfType<Button>())
+            {
+                var theme = button.Tag as AppTheme;
+                button.BorderBrush = theme is not null && theme.Id == draft.ThemeId
+                    ? new SolidColorBrush(Color.Parse(theme.Accent))
+                    : new SolidColorBrush(Color.Parse("#344155"));
+                button.BorderThickness = new global::Avalonia.Thickness(theme is not null && theme.Id == draft.ThemeId ? 3 : 1);
+            }
+        }
+        foreach (var theme in ThemeCatalog.All)
+        {
+            var swatch = new Border
+            {
+                Background = new SolidColorBrush(Color.Parse(theme.Bg)),
+                Padding = new global::Avalonia.Thickness(10),
+                Width = 220,
+                Child = new StackPanel
+                {
+                    Spacing = 4,
+                    Children =
+                    {
+                        new TextBlock { Text = L.T(theme.Name), Foreground = new SolidColorBrush(Color.Parse(theme.Text)), FontWeight = FontWeight.SemiBold },
+                        new TextBlock { Text = L.T(theme.Description), Foreground = new SolidColorBrush(Color.Parse(theme.Muted)), TextWrapping = TextWrapping.Wrap },
+                        new StackPanel
+                        {
+                            Orientation = Orientation.Horizontal,
+                            Height = 10,
+                            Children =
+                            {
+                                new Border { Width = 48, Background = new SolidColorBrush(Color.Parse(theme.Surface)) },
+                                new Border { Width = 48, Background = new SolidColorBrush(Color.Parse(theme.Raised)) },
+                                new Border { Width = 48, Background = new SolidColorBrush(Color.Parse(theme.Selection)) },
+                                new Border { Width = 48, Background = new SolidColorBrush(Color.Parse(theme.Accent)) }
+                            }
+                        }
+                    }
+                }
+            };
+            var button = new Button { Content = swatch, Tag = theme, Margin = new global::Avalonia.Thickness(4), Padding = new global::Avalonia.Thickness(2), Background = Brushes.Transparent };
+            button.Click += (_, _) =>
+            {
+                draft.ThemeId = theme.Id;
+                draft.DarkMode = theme.IsDark;
+                (global::Avalonia.Application.Current as App)?.ApplyTheme(draft);
+                Mark();
+            };
+            panel.Children.Add(button);
+        }
+        Mark();
+        return new ScrollViewer
+        {
+            Content = new StackPanel
+            {
+                Spacing = 8,
+                Children =
+                {
+                    new TextBlock { Text = L.T("Die Auswahl wird sofort als Vorschau angezeigt. Speichern übernimmt das Farbschema; Abbrechen stellt die vorherige Auswahl wieder her."), TextWrapping = TextWrapping.Wrap },
+                    panel
+                }
+            }
         };
-        return new StackPanel { Spacing = 8, Margin = new global::Avalonia.Thickness(4), Children = { Label(L.T("Darstellung")), themes } };
     }
 
     private static Control WatchTab(Window owner, AppSettings draft)
@@ -431,11 +681,16 @@ public static class StudioDialogs
         return result;
     }
 
-    private static Control NamingTab(AppSettings draft)
+    private static Control NamingTab(AppSettings draft, MediaInfo? media, EncodingOptions? options)
     {
         var naming = draft.FileNaming;
         var pattern = new TextBlock { TextWrapping = TextWrapping.Wrap };
-        void Refresh() => pattern.Text = naming.Enabled ? FileNaming.Pattern(naming) : L.T("Ist diese Option aus, gilt das individuelle Dateinamenschema im Video-Reiter.");
+        var example = new TextBlock { TextWrapping = TextWrapping.Wrap, FontFamily = new FontFamily("Consolas,monospace") };
+        void Refresh()
+        {
+            pattern.Text = naming.Enabled ? FileNaming.Pattern(naming) : options?.FileNamePattern ?? L.T("Ist diese Option aus, gilt das individuelle Dateinamenschema im Video-Reiter.");
+            example.Text = FileNamePreview.Of(media, options, naming);
+        }
         var enabled = Check(L.T("Diese Namensauswahl für neue Queue-Aufträge verwenden"), naming.Enabled, value => { naming.Enabled = value; Refresh(); });
         CheckBox Part(string label, bool value, Action<bool> write) => Check(L.T(label), value, current => { write(current); Refresh(); });
         var stack = new StackPanel
@@ -456,7 +711,9 @@ public static class StudioDialogs
                 Part("Name des gespeicherten Presets", naming.IncludePreset, value => naming.IncludePreset = value),
                 Part("Bildrate (FPS)", naming.IncludeFrameRate, value => naming.IncludeFrameRate = value),
                 Label(L.T("Erzeugtes Dateinamenschema")),
-                pattern
+                pattern,
+                Label(L.T(media is null ? "Eine Videodatei auswählen." : "Vorschau mit der aktuell ausgewählten Datei")),
+                example
             }
         };
         Refresh();

@@ -2,7 +2,7 @@
 
 Navigation guide for small changes. Start with the feature table, then read only the relevant implementation and tests.
 Paths are relative to this project root. Source projects/namespaces retain `FFmpegStudio`; the desktop executable is `PixelPeeker.exe`.
-Verified against source on 2026-10-26 (0.10.41, Avalonia editor features, Linux libc gate, and GPL-3.0-or-later). Update locations when structure changes, not after every UI tweak.
+Verified against source on 2026-10-26 (0.10.42, Avalonia parity with the remaining WPF editor surfaces, and Linux tar.gz/AppImage packages). Update locations when structure changes, not after every UI tweak.
 
 ## 1. Architecture overview
 
@@ -34,8 +34,8 @@ Verified against source on 2026-10-26 (0.10.41, Avalonia editor features, Linux 
 | `src/FFmpegStudio.Desktop/Assets` | App icon/logo and image-generation prompt; see [branding notes](docs/BRANDING.md). |
 | `tests/FFmpegStudio.Tests`, `tests/FFmpegStudio.Desktop.Tests`, `tests/FFmpegStudio.Avalonia.Tests` | Core/service tests, native WPF interaction regression test, and a headless Avalonia window test. |
 | `tools/FFmpegStudio.Verify` | Console entry point and real-FFmpeg integration suite. |
-| `Build.ps1`, `Publish.ps1` | Test/build entry points and portable publishing; **both run tests by default**. Publish supports `-SkipTests` after a separate successful run against the same source. |
-| `.github/workflows/ci.yml` | Pull-request and `main` CI. Windows builds `FFmpegStudio.sln` and runs its test projects. Ubuntu builds `FFmpegStudio.Linux.slnf`, runs those tests, and smoke-starts Avalonia. Does not publish. |
+| `Build.ps1`, `Publish.ps1`, `Publish-Linux.ps1` | Test/build entry points and portable publishing; **the publish scripts run tests by default**. `Publish.ps1` is the Windows EXE. `Publish.ps1 -Linux` delegates to `Publish-Linux.ps1`. Both support `-SkipTests` after a separate successful run against the same source. |
+| `.github/workflows/ci.yml` | Pull-request and `main` CI. Windows builds `FFmpegStudio.sln` and runs its test projects. Ubuntu builds `FFmpegStudio.Linux.slnf`, runs those tests, and smoke-starts Avalonia. A following Ubuntu job uploads the Linux tar.gz and AppImage files as workflow artifacts. It does not create a GitHub Release. |
 | `docs` | [Editing](docs/FRAME-ACCURATE-EDITING.md), [comparison](docs/ENCODE-COMPARISON.md), [languages](docs/LANGUAGES.md), [architecture](docs/ARCHITECTURE.md), [verification history](docs/STATUS.md). |
 
 Skip `artifacts`, `.test-data`, `.vs`, `bin` and `obj` during routine code navigation; these contain outputs, fixtures or generated state.
@@ -62,7 +62,7 @@ Primary paths below are the first files to open; related class names refer to th
 | Accurate still preview, frame steps, loading overlay | `src/FFmpegStudio.Desktop/MainViewModel.Preview.cs`: `RequestPreviewAsync`; `src/FFmpegStudio.Infrastructure/FrameNavigationService.cs`, `AccuratePreviewService.cs` | `src/FFmpegStudio.Core/FrameNavigation.cs`; `PreviewService` PNG/custom-filter fallback; `MainWindow.xaml`, `src/FFmpegStudio.Desktop/LoadingSpinner.xaml`. |
 | Playback, fast seeking, pause to exact frame | `IPlaybackSession` in `src/FFmpegStudio.Shared/PlaybackSession.cs`; Windows `src/FFmpegStudio.Desktop/SourcePlaybackService.cs`; Avalonia `src/FFmpegStudio.Avalonia/AvaloniaPlaybackSession.cs` and `VlcVideoView.cs` | WPF keeps LibVLCSharp.WPF, the bundled Windows libvlc, and `AccuratePreviewService` for the paused frame. Avalonia uses LibVLCSharp 3.10.2 (not LibVLCSharp.Avalonia) and the system libvlc. After pause it resolves the source frame with `FrameNavigationService` and extracts that PTS through `PreviewService`. |
 | Cut editor, excluded ranges, synchronized cut export | `src/FFmpegStudio.Desktop/MainViewModel.Cuts.cs`, `CutEditorControl.cs`, `CutTimelineStrip.cs`; `src/FFmpegStudio.Core/CutTimeline.cs` | `src/FFmpegStudio.Infrastructure/CutPreparationService.cs`; `src/FFmpegStudio.Core/SubtitleCuts.cs`; command builder and comparison time mapping. |
-| Peek: source/encode or two-encode comparison | WPF `src/FFmpegStudio.Desktop/EncodeComparisonViewModel.cs` and `EncodeComparisonControl`; Avalonia `EncodeComparisonSession` plus `StudioDialogs.ShowComparisonAsync` | Both call `EncodeComparisonService`. The WPF window keeps the sample strip, availability strip and focus pane. |
+| Peek: source/encode or two-encode comparison | WPF `src/FFmpegStudio.Desktop/EncodeComparisonViewModel.cs` and `EncodeComparisonControl`; Avalonia `EncodeComparisonSession`, `ComparisonSamples` and `StudioDialogs.ShowComparisonAsync` | Both call `EncodeComparisonService`. Avalonia stores frame paths and draws the sample strip, availability strip and focus pane. WPF keeps its own bitmap strip. |
 | Peek zoom, stable image sizes, samples, cut availability | `src/FFmpegStudio.Desktop/ComparisonImagePane.cs`, `ComparisonAvailabilityStrip.cs`, `EncodeComparisonViewModel.Samples.cs` | `src/FFmpegStudio.Core/ComparisonTimeline.cs`, `CutTimeline`; selection/source-position preservation lives in `EncodeComparisonViewModel`. |
 | Quality analysis, progress, measurements, CSV/results | `QualityAnalysisService` in `ComparisonServices.cs`; shared `QualityAnalysisRun` and `QualityReport`; WPF `AnalyzeJobSafelyAsync` and `AnalysisWindow` | Avalonia `EditorViewModel.AnalyzeQualityAsync` shows the same measurements, a polyline and CSV/JSON export. `ResultsWindow` stays in the WPF shell. |
 | Saved application presets | `src/FFmpegStudio.Infrastructure/PresetService.cs`: `BuiltIns`, `Apply`, import/export; `src/FFmpegStudio.Desktop/MainViewModel.cs`: preset commands | `Preset` in `Models.cs`; `JsonEditor`/`TextDialog` in `Dialogs.cs`. Application presets differ from encoder speed presets. |
@@ -144,7 +144,7 @@ Linux subset: `dotnet test FFmpegStudio.Linux.slnf -c Release` (skips the WPF pr
 - Published-app entry is `App.OnStartup` with `--smoke-test <output-folder> [source-file]`; optional `--seek`, `--playback`, `--cuts`, `--compare`, `--test-notice` exercise additional paths (`--idle-seek` extends `--seek`). Use an isolated `FFMPEG_STUDIO_DATA` root with toolchain configuration.
 - `src/FFmpegStudio.Desktop/App.EncodeComparisonSmoke.cs` holds published comparison checks; other smoke helpers are listed above. Historical evidence is indexed in [STATUS](docs/STATUS.md); do not treat it as a substitute for checking changed behavior.
 - For a broad implementation change, `dotnet test FFmpegStudio.sln -c Release` runs the test projects included in the solution, including the WPF project that builds only on Windows. `Publish.ps1` also runs tests by default before packaging; use `-SkipTests` only after a successful separate run against the same source. Avoid publishing when builds/tests are explicitly out of scope.
-- CI is `.github/workflows/ci.yml`. It does not set `FFMPEG_STUDIO_TEST_DATA` or `PIXELPEEKER_LIVE_FFMPEG`, and it does not run `tools/FFmpegStudio.Verify`.
+- CI is `.github/workflows/ci.yml`. It does not set `FFMPEG_STUDIO_TEST_DATA` or `PIXELPEEKER_LIVE_FFMPEG`, and it does not run `tools/FFmpegStudio.Verify`. The package job runs `Publish-Linux.ps1 -SkipTests` after the Ubuntu tests and uploads the archives as workflow artifacts.
 
 ## 7. Avalonia / Linux migration
 
@@ -157,7 +157,9 @@ The WPF app remains the full Windows product. The Avalonia shell edits, queues, 
 | Efficiency mode and process-tree job objects | `IProcessControl`; Windows implementation in `WindowsEfficiencyMode` / `WindowsProcessJob` | EcoQoS and job objects |
 | CPU, RAM, GPU readings | `IHardwareMonitor` | kernel32 sensors; Linux uses `/proc` and `nvidia-smi` when present |
 | Managed FFmpeg download | `IFmpegDistribution` | gyan.dev on Windows. Linux: `LinuxFfmpegDistribution` plus `LinuxLibc` (glibc ≥ 2.28; no musl download) |
-| Editor, settings, comparison, analysis, playback | `EditorViewModel` and `FFmpegStudio.Avalonia` | WPF still owns the sample strip, focus comparison pane, chart axes, tooltip catalog and completion countdown |
-| Full editor, dialogs, themes in the WPF resource dictionary, LibVLC playback | `FFmpegStudio.Desktop` | WPF, `net10.0-windows`, LibVLCSharp.WPF |
+| Editor, settings, comparison, analysis, playback, audio, hardware text, results, countdown | `EditorViewModel`, `EditorFeatures`, `EncodeComparisonSession` and `FFmpegStudio.Avalonia` (`StudioDialogs`, `ComparisonAvailabilityView`, `AvaloniaHints`) | WPF still draws its own bitmap comparison and DataGrid. Its power path stays `SetSuspendState` / `shutdown.exe` |
+| Linux suspend and poweroff | `src/FFmpegStudio.Infrastructure/SessionPower.cs` | `systemctl`, then `loginctl`; no-op when neither exists. Tests call `Resolve` only |
+| Linux packages | `Publish-Linux.ps1`, `Publish.ps1 -Linux`, `packaging/linux/AppRun`, `packaging/linux/pixelpeeker.desktop` | Versioned and current folders under `artifacts/`. CI uploads tar.gz and AppImage files; it does not publish a GitHub Release |
+| Full editor, dialogs, themes in the WPF resource dictionary, LibVLC playback | `FFmpegStudio.Desktop` | WPF, `net10.0-windows`, LibVLCSharp.WPF, bundled VideoLAN.LibVLC.Windows |
 
-Do not publish a Linux build from this branch. WPF remains the Windows shell; Avalonia is the cross-platform shell on the same services.
+WPF remains the Windows shell. Avalonia is the cross-platform shell on the same services. Linux packages do not bundle libvlc or FFmpeg.

@@ -8448,5 +8448,165 @@
     "请选择一个任务。",
     "Выберите задание.",
     "ジョブを選択してください。"
+  ],
+  "Leeren": [
+    "Clear",
+    "Wyczyść",
+    "Vider",
+    "Vaciar",
+    "Temizle",
+    "清空",
+    "Очистить",
+    "クリア"
+  ],
+  "FFmpeg installieren": [
+    "Install FFmpeg",
+    "Zainstaluj FFmpeg",
+    "Installer FFmpeg",
+    "Instalar FFmpeg",
+    "FFmpeg'i yükle",
+    "安装 FFmpeg",
+    "Установить FFmpeg",
+    "FFmpeg をインストール"
+  ],
+  "Presets": [
+    "Presets",
+    "Presety",
+    "Préréglages",
+    "Ajustes predefinidos",
+    "Ön ayarlar",
+    "预设",
+    "Пресеты",
+    "プリセット"
+  ],
+  "Start": [
+    "Start",
+    "Start",
+    "Début",
+    "Inicio",
+    "Başlangıç",
+    "开始",
+    "Начало",
+    "開始"
+  ],
+  "Ende": [
+    "End",
+    "Koniec",
+    "Fin",
+    "Fin",
+    "Bitiş",
+    "结束",
+    "Конец",
+    "終了"
+  ],
+  "Container": [
+    "Container",
+    "Kontener",
+    "Conteneur",
+    "Contenedor",
+    "Kapsayıcı",
+    "容器",
+    "Контейнер",
+    "コンテナ"
+  ],
+  "Breite / Höhe": [
+    "Width / height",
+    "Szerokość / wysokość",
+    "Largeur / hauteur",
+    "Ancho / alto",
+    "Genişlik / yükseklik",
+    "宽度 / 高度",
+    "Ширина / высота",
+    "幅 / 高さ"
+  ],
+  "Dateiname": [
+    "File name",
+    "Nazwa pliku",
+    "Nom de fichier",
+    "Nombre de archivo",
+    "Dosya adı",
+    "文件名",
+    "Имя файла",
+    "ファイル名"
+  ],
+  "Ergebnisse": [
+    "Results",
+    "Wyniki",
+    "Résultats",
+    "Resultados",
+    "Sonuçlar",
+    "结果",
+    "Результаты",
+    "結果"
+  ],
+  "Beispielbilder": [
+    "Sample frames",
+    "Klatki przykładowe",
+    "Images exemples",
+    "Fotogramas de muestra",
+    "Örnek kareler",
+    "示例帧",
+    "Примерные кадры",
+    "サンプルフレーム"
+  ],
+  "Beispielbilder laden": [
+    "Load sample frames",
+    "Wczytaj klatki przykładowe",
+    "Charger les images exemples",
+    "Cargar fotogramas de muestra",
+    "Örnek kareleri yükle",
+    "加载示例帧",
+    "Загрузить примерные кадры",
+    "サンプルフレームを読み込む"
+  ],
+  "Fokus": [
+    "Focus",
+    "Fokus",
+    "Focus",
+    "Foco",
+    "Odak",
+    "焦点",
+    "Фокус",
+    "フォーカス"
+  ],
+  "Energiesparen startet nach dem Countdown. Abbrechen ist möglich.": [
+    "Sleep starts after the countdown. You can cancel.",
+    "Uśpienie rozpocznie się po odliczaniu. Można anulować.",
+    "La mise en veille démarre après le compte à rebours. L'annulation reste possible.",
+    "La suspensión comienza tras la cuenta atrás. Se puede cancelar.",
+    "Uyku, geri sayımın ardından başlar. İptal edilebilir.",
+    "休眠将在倒计时后开始。可以取消。",
+    "Спящий режим начнётся после отсчёта. Его можно отменить.",
+    "スリープはカウントダウン後に始まります。取り消せます。"
+  ],
+  "Herunterfahren startet nach dem Countdown. Abbrechen ist möglich.": [
+    "Shutdown starts after the countdown. You can cancel.",
+    "Wyłączenie rozpocznie się po odliczaniu. Można anulować.",
+    "L'arrêt démarre après le compte à rebours. L'annulation reste possible.",
+    "El apagado comienza tras la cuenta atrás. Se puede cancelar.",
+    "Kapatma, geri sayımın ardından başlar. İptal edilebilir.",
+    "关机将在倒计时后开始。可以取消。",
+    "Выключение начнётся после отсчёта. Его можно отменить.",
+    "シャットダウンはカウントダウン後に始まります。取り消せます。"
+  ],
+  "Diese Energieaktion wird hier nicht unterstützt.": [
+    "This power action is not supported here.",
+    "Ta akcja zasilania nie jest tutaj obsługiwana.",
+    "Cette action d'alimentation n'est pas prise en charge ici.",
+    "Esta acción de energía no se admite aquí.",
+    "Bu güç eylemi burada desteklenmiyor.",
+    "此处不支持此电源操作。",
+    "Это действие питания здесь не поддерживается.",
+    "この電源操作はここではサポートされていません。"
+  ],
+  "Energieaktion wurde gestartet.": [
+    "The power action was started.",
+    "Akcja zasilania została uruchomiona.",
+    "L'action d'alimentation a été lancée.",
+    "La acción de energía se ha iniciado.",
+    "Güç eylemi başlatıldı.",
+    "电源操作已启动。",
+    "Действие питания запущено.",
+    "電源操作を開始しました。"
   ]
 }
