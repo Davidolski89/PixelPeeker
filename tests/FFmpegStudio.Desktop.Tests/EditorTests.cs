@@ -1687,11 +1687,14 @@ public sealed class EditorTests(ITestOutputHelper output)
                 Assert.True(jump.TranslatePoint(new Point(0,jump.ActualHeight),cutList).Y<=0);
                 var previewSettings=(FrameworkElement)window.FindName("PreviewSettingsTabs");
                 Assert.True(jump.TranslatePoint(new Point(0,jump.ActualHeight),previewSettings).Y<=previewSettings.ActualHeight-12,$"Cut navigation is clipped: {language}, {size}");
-                if(size.Item1>=1540)
+                // Hosted runners may clamp the window below the requested width. The same-row
+                // check applies only when the desktop actually provided at least 1540 DIPs.
+                if(window.ActualWidth>=1540)
                 {
                     var position=(FrameworkElement)window.FindName("PreviewPositionInput");
                     var testEncode=(FrameworkElement)window.FindName("TestEncodeButton");
-                    Assert.InRange(Math.Abs(testEncode.TranslatePoint(new Point(),position).Y),0,1);
+                    var rowDelta=Math.Abs(testEncode.TranslatePoint(new Point(),position).Y);
+                    Assert.True(rowDelta<=1,$"Test encode is not beside the position field: delta {rowDelta:0.##} at {window.ActualWidth:0}x{window.ActualHeight:0}, {language}, requested {size.Item1}x{size.Item2}");
                 }
                 if(Environment.GetEnvironmentVariable("FFMPEG_STUDIO_TEST_ARTIFACTS") is {Length:>0} previewArtifacts)
                     SaveSnapshot(window,Path.Combine(previewArtifacts,language+"-preview-"+size.Item1+".png"));

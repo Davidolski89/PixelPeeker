@@ -112,12 +112,14 @@ public sealed class LinuxFfmpegTests
         {
             var paths = new AppPaths(root);
             var distribution = new LinuxFfmpegDistribution(paths, new FFmpegVersionService(paths, new ProcessRunner()), new HttpClient(new BlockingHandler()));
+            var linuxHost = OperatingSystem.IsLinux() && LinuxFfmpegSources.IsSupported(System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture);
             distribution.LibcProbe = alpine;
             Assert.False(distribution.SupportsManagedInstall);
             var refused = await Assert.ThrowsAsync<PlatformNotSupportedException>(() => distribution.CheckAsync());
-            Assert.Contains("apk add ffmpeg", refused.Message);
+            // On Windows the install is refused because the host is not Linux. The libc text is covered above.
+            if (linuxHost) Assert.Contains("apk add ffmpeg", refused.Message);
             distribution.LibcProbe = old;
-            Assert.Contains("2.17", distribution.SourceDescription);
+            if (linuxHost) Assert.Contains("2.17", distribution.SourceDescription);
             await Assert.ThrowsAsync<PlatformNotSupportedException>(() => distribution.InstallAsync(new RemoteBuild("refused", "aa", new Uri("https://example.invalid/ffmpeg.tar.xz"))));
         }
         finally
