@@ -1,11 +1,11 @@
 using System.IO;
-using System.Net.Http;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using FFmpegStudio.Core;
 using FFmpegStudio.Infrastructure;
+using FFmpegStudio.Shared;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace FFmpegStudio.Desktop;
@@ -137,19 +137,10 @@ public partial class App : System.Windows.Application
     internal static ServiceProvider CreateServices(AppPaths paths)
     {
         var services = new ServiceCollection();
-        services.AddSingleton(paths);
-        services.AddSingleton(new HttpClient { Timeout = TimeSpan.FromMinutes(45) });
-        services.AddSingleton<LoggingService>(); services.AddSingleton<SettingsService>(); services.AddSingleton<QueueStore>();
-        services.AddSingleton<ProcessRunner>(); services.AddSingleton<FFmpegVersionService>(); services.AddSingleton<FFmpegDownloadService>();
-        services.AddSingleton<FFmpegCapabilityService>(); services.AddSingleton<HardwareDetectionService>(); services.AddSingleton<MediaProbeService>();
-        services.AddSingleton<PreviewService>(); services.AddSingleton<FrameComparisonService>(); services.AddSingleton<QualityAnalysisService>();
-        services.AddSingleton<FrameNavigationService>();
-        services.AddSingleton<AccuratePreviewService>();
+        services.AddPixelPeeker(paths);
         services.AddSingleton<SourcePlaybackService>();
-        services.AddSingleton<EncodeComparisonService>();
-        services.AddSingleton<FFmpegCommandBuilder>(); services.AddSingleton<QueueService>(); services.AddSingleton<PresetService>();
-        services.AddSingleton<SubtitleService>(); services.AddSingleton<FolderWatchService>(); services.AddSingleton<HardwareMonitorService>();
-        services.AddSingleton<MainViewModel>(); services.AddSingleton<MainWindow>();
+        services.AddSingleton<MainViewModel>();
+        services.AddSingleton<MainWindow>();
         return services.BuildServiceProvider();
     }
     public static AppTheme CurrentTheme { get; private set; } = ThemeCatalog.Resolve(ThemeCatalog.DefaultId);

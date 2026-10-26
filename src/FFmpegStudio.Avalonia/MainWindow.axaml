@@ -1,0 +1,89 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:FFmpegStudio.Shared"
+        xmlns:core="using:FFmpegStudio.Core"
+        xmlns:input="using:Avalonia.Input"
+        x:Class="FFmpegStudio.Avalonia.MainWindow"
+        x:DataType="vm:LibraryViewModel"
+        x:Name="Root"
+        Title="PixelPeeker"
+        Width="1100" Height="740"
+        MinWidth="760" MinHeight="520"
+        Background="{DynamicResource StudioBg}"
+        Foreground="{DynamicResource StudioText}"
+        input:DragDrop.AllowDrop="True">
+    <Grid Margin="16" RowDefinitions="Auto,Auto,*,Auto" RowSpacing="12">
+        <StackPanel Grid.Row="0" Spacing="6">
+            <TextBlock Text="PixelPeeker" FontSize="22" FontWeight="SemiBold"/>
+            <TextBlock x:Name="PhaseNote" Text="{Binding PhaseNote}" TextWrapping="Wrap" Foreground="{DynamicResource StudioMuted}"/>
+        </StackPanel>
+        <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+            <Button x:Name="OpenFileButton" Content="{Binding OpenFileLabel}" Click="OpenFileClick"
+                    Background="{DynamicResource StudioAccent}" Foreground="#0E2420" Padding="14,8"/>
+            <TextBlock Grid.Column="1" VerticalAlignment="Center" TextWrapping="Wrap" Foreground="{DynamicResource StudioMuted}"
+                       Text="{Binding DistributionNote}"/>
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <TextBlock Text="FFmpeg" Foreground="{DynamicResource StudioMuted}"/>
+                <TextBlock x:Name="InstalledVersionText" Text="{Binding InstalledVersion}"/>
+            </StackPanel>
+        </Grid>
+        <Grid Grid.Row="2" ColumnDefinitions="320,*" ColumnSpacing="12">
+            <Border Background="{DynamicResource StudioSurface}" BorderBrush="{DynamicResource StudioBorder}" BorderThickness="1" CornerRadius="8" Padding="10">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" Text="{Binding LibraryHeading}" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                    <ListBox x:Name="MediaList" ItemsSource="{Binding Media}" SelectedItem="{Binding SelectedMedia}"
+                             Background="Transparent" BorderThickness="0">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:LibraryMedia">
+                                <StackPanel Margin="0,4">
+                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Text="{Binding Summary}" Foreground="{DynamicResource StudioMuted}" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </Border>
+            <Grid Grid.Column="1" RowDefinitions="*,220" RowSpacing="12">
+                <Border Background="{DynamicResource StudioSurface}" BorderBrush="{DynamicResource StudioBorder}" BorderThickness="1" CornerRadius="8" Padding="10">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Top" Text="{Binding MediaHeading}" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                        <ScrollViewer>
+                            <TextBlock x:Name="MediaDetailsText" Text="{Binding MediaDetails}" TextWrapping="Wrap" FontFamily="Inter, monospace"/>
+                        </ScrollViewer>
+                    </DockPanel>
+                </Border>
+                <Border Grid.Row="1" Background="{DynamicResource StudioSurface}" BorderBrush="{DynamicResource StudioBorder}" BorderThickness="1" CornerRadius="8" Padding="10">
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="12" Margin="0,0,0,8">
+                            <TextBlock Text="{Binding QueueHeading}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{Binding QueueSummary}" Foreground="{DynamicResource StudioMuted}"/>
+                        </StackPanel>
+                        <Grid ColumnDefinitions="*,*">
+                            <ListBox x:Name="QueueList" ItemsSource="{Binding Jobs}" SelectedItem="{Binding SelectedJob}"
+                                     Background="Transparent" BorderThickness="0">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="core:EncodingJob">
+                                        <StackPanel Margin="0,4">
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding DisplayStatus}" Foreground="{DynamicResource StudioMuted}"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <ScrollViewer Grid.Column="1">
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="{Binding JobHeading}" FontWeight="SemiBold"/>
+                                    <TextBlock x:Name="JobDetailsText" Text="{Binding JobDetails}" TextWrapping="Wrap"/>
+                                    <TextBlock Text="{Binding CommandHeading}" FontWeight="SemiBold" Margin="0,8,0,0"/>
+                                    <TextBlock x:Name="CommandPreviewText" Text="{Binding CommandPreview}" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Grid>
+                    </DockPanel>
+                </Border>
+            </Grid>
+        </Grid>
+        <TextBlock x:Name="StatusText" Grid.Row="3" Text="{Binding StatusText}" TextWrapping="Wrap" Foreground="{DynamicResource StudioMuted}"/>
+    </Grid>
+</Window>

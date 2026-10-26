@@ -8178,5 +8178,115 @@
     "编码器默认值",
     "По умолчанию",
     "エンコーダー既定値"
+  ],
+  "Datei öffnen": [
+    "Open file",
+    "Otwórz plik",
+    "Ouvrir un fichier",
+    "Abrir archivo",
+    "Dosya aç",
+    "打开文件",
+    "Открыть файл",
+    "ファイルを開く"
+  ],
+  "Medienbibliothek": [
+    "Media library",
+    "Biblioteka multimediów",
+    "Bibliothèque multimédia",
+    "Biblioteca multimedia",
+    "Ortam kitaplığı",
+    "媒体库",
+    "Медиатека",
+    "メディアライブラリ"
+  ],
+  "Queue": [
+    "Queue",
+    "Kolejka",
+    "File d’attente",
+    "Cola",
+    "Kuyruk",
+    "队列",
+    "Очередь",
+    "キュー"
+  ],
+  "Ausgewählter Job": [
+    "Selected job",
+    "Wybrane zadanie",
+    "Tâche sélectionnée",
+    "Tarea seleccionada",
+    "Seçili iş",
+    "所选任务",
+    "Выбранное задание",
+    "選択したジョブ"
+  ],
+  "Avalonia-Vorschau. Wiedergabe, der vollständige Editor und die Beschaffung von FFmpeg für Linux folgen in späteren Phasen.": [
+    "Avalonia preview. Playback, the full editor, and obtaining FFmpeg for Linux come in later phases.",
+    "Podgląd Avalonia. Odtwarzanie, pełny edytor i pobieranie FFmpeg dla Linuksa pojawią się w kolejnych etapach.",
+    "Aperçu Avalonia. La lecture, l’éditeur complet et l’obtention de FFmpeg pour Linux viendront dans des phases ultérieures.",
+    "Vista previa de Avalonia. La reproducción, el editor completo y la obtención de FFmpeg para Linux llegarán en fases posteriores.",
+    "Avalonia önizlemesi. Oynatma, tam düzenleyici ve Linux için FFmpeg edinme sonraki aşamalarda gelecek.",
+    "Avalonia 预览。播放、完整编辑器以及在 Linux 上获取 FFmpeg 将在后续阶段提供。",
+    "Предпросмотр Avalonia. Воспроизведение, полный редактор и получение FFmpeg для Linux появятся на следующих этапах.",
+    "Avalonia プレビュー。再生、完全なエディター、Linux 向け FFmpeg の入手は後の段階で対応します。"
+  ],
+  "Verwaltete Installation: gyan.dev, nur Windows-Builds.": [
+    "Managed install: gyan.dev, Windows builds only.",
+    "Instalacja zarządzana: gyan.dev, tylko kompilacje Windows.",
+    "Installation gérée : gyan.dev, builds Windows uniquement.",
+    "Instalación administrada: gyan.dev, solo compilaciones de Windows.",
+    "Yönetilen kurulum: gyan.dev, yalnızca Windows derlemeleri.",
+    "托管安装：gyan.dev，仅 Windows 构建。",
+    "Управляемая установка: gyan.dev, только сборки Windows.",
+    "管理インストール: gyan.dev、Windows ビルドのみ。"
+  ],
+  "Verwaltete Installation ist auf diesem System nicht verfügbar. gyan.dev liefert nur Windows-Builds. Linux-FFmpeg folgt später.": [
+    "Managed install is not available on this system. gyan.dev provides Windows builds only. Linux FFmpeg comes later.",
+    "Instalacja zarządzana nie jest dostępna w tym systemie. gyan.dev dostarcza tylko kompilacje Windows. FFmpeg dla Linuksa pojawi się później.",
+    "L’installation gérée n’est pas disponible sur ce système. gyan.dev ne fournit que des builds Windows. FFmpeg pour Linux viendra plus tard.",
+    "La instalación administrada no está disponible en este sistema. gyan.dev solo ofrece compilaciones de Windows. FFmpeg para Linux llegará más adelante.",
+    "Yönetilen kurulum bu sistemde kullanılamıyor. gyan.dev yalnızca Windows derlemeleri sağlar. Linux FFmpeg daha sonra gelecek.",
+    "此系统无法使用托管安装。gyan.dev 仅提供 Windows 构建。Linux 版 FFmpeg 将在稍后提供。",
+    "Управляемая установка недоступна в этой системе. gyan.dev предоставляет только сборки Windows. FFmpeg для Linux появится позже.",
+    "このシステムでは管理インストールを利用できません。gyan.dev は Windows ビルドのみを提供します。Linux 向け FFmpeg は後で対応します。"
+  ],
+  "Die verwaltete FFmpeg-Installation lädt derzeit nur Windows-Builds von gyan.dev.": [
+    "The managed FFmpeg install currently downloads Windows builds from gyan.dev only.",
+    "Zarządzana instalacja FFmpeg pobiera obecnie tylko kompilacje Windows z gyan.dev.",
+    "L’installation gérée de FFmpeg ne télécharge actuellement que des builds Windows depuis gyan.dev.",
+    "La instalación administrada de FFmpeg actualmente solo descarga compilaciones de Windows desde gyan.dev.",
+    "Yönetilen FFmpeg kurulumu şu anda yalnızca gyan.dev üzerinden Windows derlemelerini indirir.",
+    "托管的 FFmpeg 安装目前仅从 gyan.dev 下载 Windows 构建。",
+    "Управляемая установка FFmpeg пока загружает только сборки Windows с gyan.dev.",
+    "管理された FFmpeg のインストールは、現在 gyan.dev の Windows ビルドのみをダウンロードします。"
+  ],
+  "FFmpeg/ffprobe fehlt, daher wurden keine Spuren, Codecs oder Laufzeiten gelesen.": [
+    "FFmpeg/ffprobe is missing, so no streams, codecs, or durations were read.",
+    "Brak FFmpeg/ffprobe, dlatego nie odczytano ścieżek, kodeków ani czasu trwania.",
+    "FFmpeg/ffprobe est absent, donc aucune piste, aucun codec ni aucune durée n’a été lu.",
+    "Falta FFmpeg/ffprobe, por lo que no se leyeron pistas, códecs ni duraciones.",
+    "FFmpeg/ffprobe yok, bu nedenle parça, codec veya süre okunmadı.",
+    "缺少 FFmpeg/ffprobe，因此未读取任何轨道、编解码器或时长。",
+    "FFmpeg/ffprobe отсутствует, поэтому дорожки, кодеки и длительность не прочитаны.",
+    "FFmpeg/ffprobe がないため、ストリーム、コーデック、再生時間は読み取っていません。"
+  ],
+  "Datei: {0}\nGröße: {1} Bytes\n": [
+    "File: {0}\nSize: {1} bytes\n",
+    "Plik: {0}\nRozmiar: {1} bajtów\n",
+    "Fichier : {0}\nTaille : {1} octets\n",
+    "Archivo: {0}\nTamaño: {1} bytes\n",
+    "Dosya: {0}\nBoyut: {1} bayt\n",
+    "文件: {0}\n大小: {1} 字节\n",
+    "Файл: {0}\nРазмер: {1} байт\n",
+    "ファイル: {0}\nサイズ: {1} バイト\n"
+  ],
+  "Die ausgewählte Datei hat keinen lokalen Pfad.": [
+    "The selected file has no local path.",
+    "Wybrany plik nie ma lokalnej ścieżki.",
+    "Le fichier sélectionné n’a pas de chemin local.",
+    "El archivo seleccionado no tiene una ruta local.",
+    "Seçilen dosyanın yerel yolu yok.",
+    "所选文件没有本地路径。",
+    "У выбранного файла нет локального пути.",
+    "選択したファイルにローカルパスがありません。"
   ]
 }

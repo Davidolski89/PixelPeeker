@@ -21,6 +21,7 @@
     <InternalsVisibleTo Include="FFmpegStudio.Desktop.Tests" />
     <Using Remove="System.Windows.Forms"/><Using Remove="System.Drawing"/>
     <ProjectReference Include="../FFmpegStudio.Infrastructure/FFmpegStudio.Infrastructure.csproj" />
+    <ProjectReference Include="../FFmpegStudio.Shared/FFmpegStudio.Shared.csproj" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
     <PackageReference Include="LibVLCSharp.WPF" Version="3.10.2" />
     <PackageReference Include="VideoLAN.LibVLC.Windows" Version="3.0.24" />

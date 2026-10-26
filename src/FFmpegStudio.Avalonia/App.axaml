@@ -1,0 +1,17 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FFmpegStudio.Avalonia.App"
+             RequestedThemeVariant="Dark">
+    <Application.Styles>
+        <FluentTheme />
+    </Application.Styles>
+    <Application.Resources>
+        <SolidColorBrush x:Key="StudioBg" Color="#10151F"/>
+        <SolidColorBrush x:Key="StudioSurface" Color="#171E2B"/>
+        <SolidColorBrush x:Key="StudioRaised" Color="#202A3A"/>
+        <SolidColorBrush x:Key="StudioBorder" Color="#344155"/>
+        <SolidColorBrush x:Key="StudioText" Color="#F0F4FA"/>
+        <SolidColorBrush x:Key="StudioMuted" Color="#A5B4C9"/>
+        <SolidColorBrush x:Key="StudioAccent" Color="#70DBC1"/>
+    </Application.Resources>
+</Application>

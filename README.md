@@ -2,6 +2,8 @@
 
 Native Windows 10/11 x64 video conversion built with WPF and .NET 10. The first usable release imports media, inspects it with ffprobe, detects encoders and filters in the installed FFmpeg build, configures each audio and subtitle stream, and runs real software or NVIDIA NVENC jobs. Its queue and settings persist in SQLite and JSON.
 
+**Linux / Avalonia (in progress).** Phase 1 extracts the portable services into `net10.0` libraries (`FFmpegStudio.Core`, `FFmpegStudio.Infrastructure`, `FFmpegStudio.Shared`) and adds an Avalonia desktop project, `src/FFmpegStudio.Avalonia`. That shell builds on Linux and Windows and reuses `LibraryViewModel`: open a media file, show ffprobe details when FFmpeg is already available, and list the saved queue. Playback, the full editor and downloading FFmpeg on Linux are later phases. The WPF app remains the complete Windows product. On Linux, build the portable subset with `dotnet build FFmpegStudio.Linux.slnf` and run `dotnet run --project src/FFmpegStudio.Avalonia/FFmpegStudio.Avalonia.csproj`. The WPF project targets `net10.0-windows` and does not build on Linux.
+
 Version 0.10.23 merges **Compare frames** and **Compare encodes** into one **Compare** button and maximized window. Select one completed job for source versus encode, or two jobs for A/B with an optional source reference. The unified viewer retains hold-Space reference preview, five sample frames, pixel zoom, synchronized panning and external files. Reference filters can match crop, scale and other spatial settings from encode A. Reopening preserves the comparison. All nine languages, remembered codec settings and accurate seeking remain available. See [CHANGELOG.md](CHANGELOG.md).
 
 The interface, dialogs, selection labels, application messages and tooltips support German, English, Polish, French, Spanish, Turkish, Simplified Chinese, Russian and Japanese; German remains the default for existing installations. Windows number formats, saved enum values, preset identities and FFmpeg arguments remain independent of the interface language. FFmpeg's own help and process output keep their original language. Drag files or folders into the library; use **Add to queue** for the selected file, **Queue selected** for selected files, and **Start queue** to run saved jobs. At app startup PixelPeeker checks for FFmpeg. Without a managed or local FFmpeg installation, install the latest Gyan Git Master Full build in **Manage FFmpeg** or choose an existing ffmpeg.exe and matching ffprobe.exe. Each managed update is downloaded into a new version directory, checked against the SHA-256 supplied for that exact build, safely extracted, and run before activation. Previous versions remain available for rollback.
@@ -12,7 +14,7 @@ Install the .NET 10 SDK and Windows Desktop targeting pack, then run Build.ps1. 
 
 Publishing runs the tests by default. Use `Publish.ps1 -SkipTests` only when the same source has already passed its relevant tests in a separate run.
 
-Open FFmpegStudio.sln in Visual Studio. The executable built from source is src/FFmpegStudio.Desktop/bin/Release/net10.0-windows/PixelPeeker.exe.
+Open FFmpegStudio.sln in Visual Studio. The Windows executable built from source is src/FFmpegStudio.Desktop/bin/Release/net10.0-windows/PixelPeeker.exe. The Avalonia shell is src/FFmpegStudio.Avalonia/bin/Release/net10.0/PixelPeeker.Avalonia.
 
 ## What works
 

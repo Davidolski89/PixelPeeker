@@ -1,5 +1,11 @@
 # Änderungen
 
+## Unveröffentlicht
+
+- Phase 1 der Avalonia-Migration: Prozesssteuerung, Hardwarewerte und die verwaltete FFmpeg-Installation liegen hinter Schnittstellen. `FFmpegStudio.Shared` (net10.0) enthält die gemeinsame Bibliotheks-, Medieninfo- und Queue-Logik.
+- Neues Avalonia-Projekt `FFmpegStudio.Avalonia` startet unter Linux und Windows, öffnet eine Mediendatei, zeigt erkannte Medieninfos und die gespeicherte Queue. Wiedergabe, der vollständige Editor und die Linux-FFmpeg-Beschaffung folgen später.
+- Die WPF-Anwendung bleibt die vollständige Windows-Oberfläche und verwendet dieselbe Bibliothek. Die verwaltete Installation lädt weiterhin nur Windows-Builds von gyan.dev.
+
 ## 0.10.39 – 24. Oktober 2026
 
 - Die erweiterten Codec-Einstellungen nutzen den Platz gleichmäßiger: SVT-AV1 zeigt Parallelität und Optimierung sowie Filmkorn und Deblocking paarweise; freie Parameter erhalten die ganze Breite.

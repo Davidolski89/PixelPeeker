@@ -1,9 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.IO;
-using System.Text;
-using System.Text.Json;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -12,6 +9,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FFmpegStudio.Core;
 using FFmpegStudio.Infrastructure;
+using FFmpegStudio.Shared;
 using Microsoft.Win32;
 
 namespace FFmpegStudio.Desktop;
@@ -327,7 +325,7 @@ public sealed partial class MainViewModel : ObservableObject
             settingPreviewPosition=true;
             try{PreviewMaximum=Math.Max(.1,value.Info.Duration??100); PreviewSeconds=Math.Min(3,PreviewMaximum*.1);}
             finally{settingPreviewPosition=false;}
-            PreviewImage=value.Thumbnail; MediaDetails=BuildMediaDetails(value.Info);
+            PreviewImage=value.Thumbnail; MediaDetails=MediaDetailsText.Format(value.Info);
             var matching=Presets.FirstOrDefault(p=>p.Name==value.Options.PresetName);
             if(!ReferenceEquals(SelectedPreset,matching)) { selectedPreset=matching; OnPropertyChanged(nameof(SelectedPreset)); }
         }
@@ -527,7 +525,7 @@ public sealed partial class MainViewModel : ObservableObject
     }
     private void UpdateQueueSummary()
     {
-        QueueSummary=L.F($"{Jobs.Count} Jobs · {Jobs.Count(j=>j.Status==JobStatus.Läuft)} aktiv · {Jobs.Count(j=>j.Status==JobStatus.Abgeschlossen)} fertig · {Jobs.Count(j=>j.Status==JobStatus.Fehlgeschlagen)} Fehler");
+        QueueSummary=QueueSummaryText.Format(Jobs);
         QueueProgress=Jobs.Count==0?0:Jobs.Sum(j=>j.Status==JobStatus.Abgeschlossen?100:j.Progress??0)/Jobs.Count;
     }
     [RelayCommand] private Task DetectCropAsync() => RunUiAsync(L.T("Schwarze Balken werden an mehreren Positionen geprüft …"),async ct=>
@@ -851,27 +849,12 @@ public sealed partial class MainViewModel : ObservableObject
             job.RefreshLanguage();
         }
         UpdateQueueSummary(); RefreshEncoderChoices(false); RefreshSummary();
-        if(SelectedMedia is {} media) MediaDetails=BuildMediaDetails(media.Info);
+        if(SelectedMedia is {} media) MediaDetails=MediaDetailsText.Format(media.Info);
         else { Conversion=L.T("Dateien importieren, um die Konvertierung einzurichten."); MediaDetails=L.T("Noch keine Datei ausgewählt."); EncoderInfo=L.T("Noch kein Encoder erkannt."); }
         OnPropertyChanged(nameof(SelectedJobDetails));
     }
     public static BitmapImage LoadImage(string path)
     {
         var image=new BitmapImage(); image.BeginInit(); image.CacheOption=BitmapCacheOption.OnLoad; image.UriSource=new Uri(Path.GetFullPath(path)); image.EndInit(); image.Freeze(); return image;
-    }
-    private static string BuildMediaDetails(MediaInfo info)
-    {
-        static string N(object? x)=>x?.ToString()??L.T("unbekannt");
-        var text=new StringBuilder(L.F($"Datei: {info.Path}\nContainer: {info.Container}\nGröße: {info.Size:N0} Bytes\nDauer: {N(info.Duration)} s\nGesamtbitrate: {N(info.BitRate)} bit/s\nStartzeit: {info.StartTime}\n"));
-        foreach(var stream in info.Streams)
-        {
-            text.AppendLine($"\n{stream.Type.ToUpperInvariant()} #{stream.Index} — {stream.Summary}");
-            text.AppendLine(L.F($"Profil: {N(stream.Profile)} · Level: {N(stream.Level)} · Bitrate: {N(stream.BitRate)}"));
-            if(stream.Type=="video") text.AppendLine(L.F($"Raster: {stream.Width} × {stream.Height} · SAR: {N(stream.SampleAspectRatio)} · DAR: {N(stream.DisplayAspectRatio)}\nBildrate: {N(stream.AverageFrameRate)} · {stream.FrameRateMode}\nPixelformat: {N(stream.PixelFormat)} · Tiefe: {N(stream.BitDepth)}\nFarbraum: {N(stream.ColorSpace)} · Primärfarben: {N(stream.ColorPrimaries)} · Transfer: {N(stream.ColorTransfer)} · Bereich: {N(stream.ColorRange)}\nHDR: {(stream.IsHdr?L.T("Ja"):L.T("Nicht erkannt"))} · Rotation: {stream.Rotation}°\nSide Data: {stream.SideDataJson}"));
-            text.AppendLine(L.F($"Sprache: {stream.Language} · Titel: {stream.Title} · Default: {stream.Default} · Forced: {stream.Forced}"));
-            foreach(var tag in stream.Tags) text.AppendLine($"  {tag.Key}: {tag.Value}");
-        }
-        text.AppendLine(L.T("\nKapitel:\n")+info.ChaptersJson+L.T("\nContainer-Metadaten:\n")+JsonSerializer.Serialize(info.Tags,Json.Options));
-        return text.ToString();
     }
 }

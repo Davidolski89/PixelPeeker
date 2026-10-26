@@ -59,12 +59,17 @@ public sealed class FFmpegVersionService(AppPaths paths, ProcessRunner runner)
     }
 }
 
-public sealed class FFmpegDownloadService(AppPaths paths, FFmpegVersionService versions, HttpClient http)
+public sealed class FFmpegDownloadService(AppPaths paths, FFmpegVersionService versions, HttpClient http) : IFmpegDistribution
 {
     public const string BaseUrl = "https://www.gyan.dev/ffmpeg/builds/";
     private readonly SemaphoreSlim gate = new(1);
+    public bool SupportsManagedInstall => OperatingSystem.IsWindows();
+    public string SourceDescription => SupportsManagedInstall
+        ? L.T("Verwaltete Installation: gyan.dev, nur Windows-Builds.")
+        : L.T("Verwaltete Installation ist auf diesem System nicht verfügbar. gyan.dev liefert nur Windows-Builds. Linux-FFmpeg folgt später.");
     public async Task<RemoteBuild> CheckAsync(CancellationToken ct = default)
     {
+        EnsureManagedInstallSupported();
         var version = VersionMetadata.ParseVersion(await http.GetStringAsync(BaseUrl + "ffmpeg-git-full.7z.ver", ct));
         // Pin both archive and checksum to one immutable build, avoiding an alias rollover race.
         var archive = new Uri(BaseUrl + $"packages/ffmpeg-{version}-full_build.7z");
@@ -73,6 +78,7 @@ public sealed class FFmpegDownloadService(AppPaths paths, FFmpegVersionService v
     }
     public async Task<Toolchain> InstallAsync(RemoteBuild build, IProgress<DownloadProgress>? progress = null, CancellationToken ct = default)
     {
+        EnsureManagedInstallSupported();
         await gate.WaitAsync(ct);
         var staging = Path.Combine(paths.Versions, ".staging-" + Guid.NewGuid().ToString("N"));
         try
@@ -124,6 +130,12 @@ public sealed class FFmpegDownloadService(AppPaths paths, FFmpegVersionService v
             if (Directory.Exists(staging)) Directory.Delete(staging, true);
             gate.Release();
         }
+    }
+    private static void EnsureManagedInstallSupported()
+    {
+        // TODO: Linux FFmpeg acquisition. gyan.dev publishes Windows binaries only.
+        if (!OperatingSystem.IsWindows())
+            throw new PlatformNotSupportedException(L.T("Die verwaltete FFmpeg-Installation lädt derzeit nur Windows-Builds von gyan.dev."));
     }
     public static async Task VerifyHashAsync(string path, string expected, CancellationToken ct = default)
     {
