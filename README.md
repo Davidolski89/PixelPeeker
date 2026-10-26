@@ -93,7 +93,29 @@ FFmpeg receives each argument via ProcessStartInfo.ArgumentList without a comman
 
 ## FFmpeg source and licence
 
-The managed download source is [Gyan's FFmpeg Windows builds](https://www.gyan.dev/ffmpeg/builds/). The application uses the Git Master Full .7z archive and its matching .ver and .sha256 text files. These endpoints and the live metadata format were verified while developing this version. Gyan says its static builds are **GPLv3**. The build's ffmpeg version, build configuration, commit id, pinned archive URL and checksum are retained in the managed install directory. The application does not bundle FFmpeg binaries in its source or publish output; the user can install, update or select FFmpeg separately. A Gyan build and every library it contains carry their respective licence obligations. See [Gyan's build and library notes](https://www.gyan.dev/ffmpeg/builds/#about-these-builds) and [FFmpeg's legal FAQ](https://ffmpeg.org/legal.html) before redistributing a build.
+The managed Windows download source is [Gyan's FFmpeg Windows builds](https://www.gyan.dev/ffmpeg/builds/). The application uses the Git Master Full .7z archive and its matching .ver and .sha256 text files. These endpoints and the live metadata format were verified while developing this version. Gyan says its static builds are **GPLv3**. The build's ffmpeg version, build configuration, commit id, pinned archive URL and checksum are retained in the managed install directory. The application does not bundle FFmpeg binaries in its source or publish output; the user can install, update or select FFmpeg separately. A Gyan build and every library it contains carry their respective licence obligations. See [Gyan's build and library notes](https://www.gyan.dev/ffmpeg/builds/#about-these-builds) and [FFmpeg's legal FAQ](https://ffmpeg.org/legal.html) before redistributing a build.
+
+### Linux
+
+On Linux x64 and arm64 the Avalonia shell downloads a static GPL FFmpeg build. The Windows gyan.dev downloader is unchanged. The application still does not ship FFmpeg binaries; it only links to the publisher's files, checks the published checksum, and stores the source URL with the install.
+
+Primary source: [BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds) GitHub releases. The app reads `https://api.github.com/repos/BtbN/FFmpeg-Builds/releases?per_page=8`, chooses the newest tag named `autobuild-*` that contains `checksums.sha256` and a static GPL asset, and downloads that immutable asset. The rolling `latest` tag is not used. Asset names, verified on 2026-10-26:
+
+- x64: `ffmpeg-N-<build>-g<commit>-linux64-gpl.tar.xz`
+- arm64: `ffmpeg-N-<build>-g<commit>-linuxarm64-gpl.tar.xz`
+
+Shared (`*-gpl-shared.tar.xz`) and LGPL assets are not selected. The `gpl` variant is a static executable build (libx264, libx265 and the other GPL dependencies), licensed **GPL-3.0-or-later**. BtbN's Linux builds still need glibc 2.28 or newer and Linux 4.18 or newer; they are not musl/Alpine builds. Corresponding source is the FFmpeg commit embedded in the asset name, published by the [FFmpeg project](https://ffmpeg.org/download.html#get-sources), together with BtbN's build scripts in the same repository. The checksum file in that release is `checksums.sha256` (SHA-256, two spaces, then the file name).
+
+Fallback, used when the BtbN release list or checksum file cannot be read: [John Van Sickle's static builds](https://johnvansickle.com/ffmpeg/). Those pages state that the builds are licensed under the **GNU GPL version 3**. URLs verified on 2026-10-26:
+
+- x64: `https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz` and the sibling `.md5`
+- arm64: `https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-arm64-static.tar.xz` and the sibling `.md5`
+
+John publishes MD5 sums, not SHA-256. The fallback checks that MD5 before extraction. These release builds are older than the BtbN autobuilds (the release files were last updated in August 2024). They target Linux kernels 3.2 and newer and are still glibc builds, not musl builds. Corresponding source is the FFmpeg release named by `ffmpeg -version`, from the [FFmpeg source archives](https://ffmpeg.org/download.html#get-sources).
+
+Both publishers allow downloading the builds from those public URLs. PixelPeeker does not redistribute the binaries. A user who already has ffmpeg and ffprobe can choose the pair on `PATH` instead of a managed install. xz archives are decompressed and then extracted with the same path checks used for the Windows 7z archives. `studio-install.json` in the version folder records the version id, checksum, algorithm, source URL and `GPL-3.0-or-later`.
+
+Linux playback does not bundle VLC. The Avalonia shell loads the system `libvlc` (for example the distro `libvlc5` and `vlc-plugin-base` packages). See [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
 The app references CommunityToolkit.Mvvm (MIT), Microsoft.Extensions.DependencyInjection (MIT), Microsoft.Data.Sqlite (MIT), SharpCompress (MIT) and SQLitePCLRaw (Apache 2.0; SQLite engine code is public domain). The portable publish includes the applicable runtime licenses and third-party notices in `licenses/`; see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). xUnit (Apache 2.0) is a development and test dependency and is not part of the desktop app. Restored direct and transitive dependencies are listed by NuGet with dotnet list package --include-transitive.
 

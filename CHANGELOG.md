@@ -3,8 +3,10 @@
 ## Unveröffentlicht
 
 - Phase 1 der Avalonia-Migration: Prozesssteuerung, Hardwarewerte und die verwaltete FFmpeg-Installation liegen hinter Schnittstellen. `FFmpegStudio.Shared` (net10.0) enthält die gemeinsame Bibliotheks-, Medieninfo- und Queue-Logik.
-- Neues Avalonia-Projekt `FFmpegStudio.Avalonia` startet unter Linux und Windows, öffnet eine Mediendatei, zeigt erkannte Medieninfos und die gespeicherte Queue. Wiedergabe, der vollständige Editor und die Linux-FFmpeg-Beschaffung folgen später.
-- Die WPF-Anwendung bleibt die vollständige Windows-Oberfläche und verwendet dieselbe Bibliothek. Die verwaltete Installation lädt weiterhin nur Windows-Builds von gyan.dev.
+- Die Avalonia-Oberfläche bindet an `EditorViewModel`: Encoder, Qualität, Preset, Container, Skalierung, Crop, Schnitte, Presets, Befehlsvorschau und Queue-Befehle. Dateidialoge und Rückfragen bleiben in der jeweiligen Oberfläche. Die WPF-Anwendung ruft dieselbe Encoder-, Schnitt- und Befehlsvorschau-Logik auf.
+- Wiedergabe läuft über `IPlaybackSession`. Windows behält LibVLCSharp.WPF und das mitgelieferte LibVLC. Avalonia nutzt LibVLCSharp mit der Systembibliothek libvlc. LibVLCSharp.Avalonia entfällt, weil es Avalonia 11 verlangt.
+- Linux x64 und arm64 laden einen statischen GPL-Build von BtbN/FFmpeg-Builds (angeheftetes Autobuild, SHA-256). John Van Sickle ist die Ersatzquelle mit MD5. Ein ffmpeg/ffprobe im PATH kann stattdessen gewählt werden. Die Windows-Quelle bleibt gyan.dev.
+- Vergleichsfenster, Qualitätsanalyse und der vollständige Einstellungsdialog bleiben in der Windows-Oberfläche.
 
 ## 0.10.39 – 24. Oktober 2026
 

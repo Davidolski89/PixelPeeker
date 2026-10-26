@@ -139,6 +139,7 @@ public partial class App : System.Windows.Application
         var services = new ServiceCollection();
         services.AddPixelPeeker(paths);
         services.AddSingleton<SourcePlaybackService>();
+        services.AddSingleton<IPlaybackSession>(sp => sp.GetRequiredService<SourcePlaybackService>());
         services.AddSingleton<MainViewModel>();
         services.AddSingleton<MainWindow>();
         return services.BuildServiceProvider();

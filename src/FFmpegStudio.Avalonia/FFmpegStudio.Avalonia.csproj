@@ -8,12 +8,13 @@
     <AssemblyName>PixelPeeker.Avalonia</AssemblyName>
     <RootNamespace>FFmpegStudio.Avalonia</RootNamespace>
     <Title>PixelPeeker</Title>
-    <Description>Avalonia shell for PixelPeeker. Phase 1 shows the library, media info and queue.</Description>
+    <Description>Avalonia shell for PixelPeeker. Editor, system-libvlc playback and Linux FFmpeg acquisition.</Description>
   </PropertyGroup>
   <ItemGroup>
     <AvaloniaResource Include="../FFmpegStudio.Desktop/Assets/PixelPeeker.png" Link="Assets/PixelPeeker.png" />
     <ProjectReference Include="../FFmpegStudio.Shared/FFmpegStudio.Shared.csproj" />
     <PackageReference Include="Avalonia" Version="12.1.4" />
+    <PackageReference Include="LibVLCSharp" Version="3.10.2" />
     <PackageReference Include="Avalonia.Desktop" Version="12.1.4" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.4" />
     <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.4" />

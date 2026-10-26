@@ -6,8 +6,7 @@ using FFmpegStudio.Infrastructure;
 namespace FFmpegStudio.Shared;
 
 /// <summary>
-/// First shared surface: import a file, show probe details when FFmpeg is present, and list the saved queue.
-/// Playback, the encoder editor and Linux FFmpeg acquisition stay in later phases.
+/// Library slice kept for the first shared surface. The Avalonia shell now binds to EditorViewModel.
 /// </summary>
 public sealed partial class LibraryViewModel : ObservableObject
 {

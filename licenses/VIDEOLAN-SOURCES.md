@@ -12,5 +12,6 @@ Upstream source, package and build references:
 - https://www.nuget.org/packages/LibVLCSharp/3.10.2
 - https://www.nuget.org/packages/LibVLCSharp.WPF/3.10.2
 - https://www.nuget.org/packages/VideoLAN.LibVLC.Windows/3.0.24
+- https://www.nuget.org/packages/LibVLCSharp/3.10.2 (also referenced by the Avalonia shell)
 
-Native libraries remain dynamically linked. To substitute compatible modified native libraries, place libvlc.dll, libvlccore.dll and the plugins directory in libvlc/win-x64 beside FFmpegStudio.exe; that directory takes precedence over the extracted bundled copy. A source checkout can also restore or substitute the managed library packages and rebuild the application. Modification and reverse engineering for debugging changes to these libraries are permitted.
+Native libraries remain dynamically linked. To substitute compatible modified native libraries on Windows, place libvlc.dll, libvlccore.dll and the plugins directory in libvlc/win-x64 beside PixelPeeker.exe; that directory takes precedence over the extracted bundled copy. The Avalonia shell does not bundle a native libvlc. On Linux it loads the system library (Ubuntu package `libvlc5`, currently 3.0.20, whose source package is `vlc` and whose upstream archive is https://get.videolan.org/vlc/3.0.20/vlc-3.0.20.tar.xz). LibVLCSharp.Avalonia is not used because it depends on Avalonia 11. A source checkout can also restore or substitute the managed library packages and rebuild the application. Modification and reverse engineering for debugging changes to these libraries are permitted.

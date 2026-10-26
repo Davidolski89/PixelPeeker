@@ -20,8 +20,8 @@ public interface IHardwareMonitor
 }
 
 /// <summary>
-/// Managed FFmpeg acquisition. The current implementation downloads Windows builds from gyan.dev.
-/// TODO: add a Linux distribution that does not reuse those Windows archives.
+/// Managed FFmpeg acquisition. Windows downloads gyan.dev builds. Linux downloads static GPL builds
+/// from BtbN/FFmpeg-Builds, with John Van Sickle's static builds as a fallback.
 /// </summary>
 public interface IFmpegDistribution
 {

@@ -22,13 +22,18 @@ public partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             var paths = new AppPaths();
+            var prompts = new AvaloniaEditorPrompts();
             provider = new ServiceCollection()
                 .AddPixelPeeker(paths)
                 .AddSingleton<IUiMarshal, AvaloniaUiMarshal>()
-                .AddSingleton<LibraryViewModel>()
+                .AddSingleton<AvaloniaPlaybackSession>()
+                .AddSingleton<IPlaybackSession>(sp => sp.GetRequiredService<AvaloniaPlaybackSession>())
+                .AddSingleton<IEditorPrompts>(prompts)
+                .AddSingleton<EditorViewModel>()
                 .BuildServiceProvider();
-            var vm = provider.GetRequiredService<LibraryViewModel>();
+            var vm = provider.GetRequiredService<EditorViewModel>();
             var window = new MainWindow { DataContext = vm };
+            prompts.Owner = () => window;
             desktop.MainWindow = window;
             desktop.ShutdownRequested += (_, _) =>
             {
@@ -57,7 +62,7 @@ public partial class App : Application
         }
     }
 
-    private async Task StartAsync(IClassicDesktopStyleApplicationLifetime desktop, LibraryViewModel vm, MainWindow window, bool smoke)
+    private async Task StartAsync(IClassicDesktopStyleApplicationLifetime desktop, EditorViewModel vm, MainWindow window, bool smoke)
     {
         try
         {

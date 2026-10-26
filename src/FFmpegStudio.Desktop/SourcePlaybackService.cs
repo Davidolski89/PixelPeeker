@@ -2,15 +2,13 @@ using System.Globalization;
 using System.IO;
 using FFmpegStudio.Core;
 using FFmpegStudio.Infrastructure;
+using FFmpegStudio.Shared;
 using LibVLCSharp.Shared;
 
 namespace FFmpegStudio.Desktop;
 
-public enum PlaybackSignalKind { Playing, Time, Ended, Failed, Buffering }
-public sealed record PlaybackSignal(long Session,PlaybackSignalKind Kind,double Value=0);
-
 /// <summary>Native operations run off the WPF thread and are serialized. Callbacks only publish data.</summary>
-public sealed class SourcePlaybackService(LoggingService log) : IAsyncDisposable
+public sealed class SourcePlaybackService(LoggingService log) : IPlaybackSession
 {
     private readonly SemaphoreSlim gate=new(1);
     private LibVLC? engine;
@@ -22,6 +20,11 @@ public sealed class SourcePlaybackService(LoggingService log) : IAsyncDisposable
     private bool disposed;
     public event Action<PlaybackSignal>? Changed;
     public string EngineVersion=>engine?.Version??"";
+    public string EngineName=>EngineVersion.Length==0?"LibVLC":"LibVLC "+EngineVersion;
+    public bool IsSurfaceReady=>player?.Hwnd!=IntPtr.Zero;
+    public object? NativePlayer=>player;
+    async Task IPlaybackSession.OpenAsync(long id,MediaInfo source,double seconds,int volume,bool muted,CancellationToken ct)
+    { _=await OpenAsync(id,source,seconds,volume,muted,ct); }
     public string NativeDirectory{get;private set;}="";
     public bool HasInput=>media is not null;
     public async Task<LibVLCSharp.Shared.MediaPlayer> OpenAsync(long id,MediaInfo source,double seconds,int volume,bool muted,CancellationToken ct)

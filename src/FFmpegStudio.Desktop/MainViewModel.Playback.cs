@@ -3,6 +3,7 @@ using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FFmpegStudio.Core;
+using FFmpegStudio.Shared;
 
 namespace FFmpegStudio.Desktop;
 

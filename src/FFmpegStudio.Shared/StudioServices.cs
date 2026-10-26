@@ -18,7 +18,10 @@ public static class StudioServices
         services.AddSingleton<ProcessRunner>();
         services.AddSingleton<FFmpegVersionService>();
         services.AddSingleton<FFmpegDownloadService>();
-        services.AddSingleton<IFmpegDistribution>(sp => sp.GetRequiredService<FFmpegDownloadService>());
+        services.AddSingleton<LinuxFfmpegDistribution>();
+        services.AddSingleton<IFmpegDistribution>(sp => OperatingSystem.IsWindows()
+            ? sp.GetRequiredService<FFmpegDownloadService>()
+            : sp.GetRequiredService<LinuxFfmpegDistribution>());
         services.AddSingleton<FFmpegCapabilityService>();
         services.AddSingleton<HardwareDetectionService>();
         services.AddSingleton<MediaProbeService>();

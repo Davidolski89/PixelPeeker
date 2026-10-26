@@ -1,8 +1,10 @@
 using System.Diagnostics;
 using System.Security.Cryptography;
+using System.Text;
 using System.Text.RegularExpressions;
 using FFmpegStudio.Core;
 using SharpCompress.Archives;
+using SharpCompress.Common;
 
 namespace FFmpegStudio.Infrastructure;
 
@@ -11,7 +13,7 @@ public sealed record DownloadProgress(string Phase, long Bytes, long? Total, dou
     public double? Percent => Total > 0 ? Bytes * 100d / Total.Value : null;
     public override string ToString() => $"{Phase} · {Bytes / 1048576d:0.0}{(Total.HasValue ? $" / {Total / 1048576d:0.0}" : "")} MiB · {BytesPerSecond / 1048576d:0.0} MiB/s";
 }
-public sealed record RemoteBuild(string Version, string Sha256, Uri ArchiveUri);
+public sealed record RemoteBuild(string Version, string Sha256, Uri ArchiveUri, string HashAlgorithm = "SHA256");
 public sealed record VersionState(Toolchain? Active, Toolchain? Previous);
 
 public sealed class FFmpegVersionService(AppPaths paths, ProcessRunner runner)
@@ -145,6 +147,15 @@ public sealed class FFmpegDownloadService(AppPaths paths, FFmpegVersionService v
         if (!CryptographicOperations.FixedTimeEquals(Convert.FromHexString(normalized), Convert.FromHexString(hash)))
             throw new InvalidDataException(L.T("SHA-256-Prüfung fehlgeschlagen. Das Archiv wird nicht installiert."));
     }
+    public static async Task VerifyMd5Async(string path, string expected, CancellationToken ct = default)
+    {
+        var normalized = expected.Trim().ToLowerInvariant();
+        if (!Regex.IsMatch(normalized, "^[a-f0-9]{32}$")) throw new InvalidDataException(L.T("Ungültige MD5-Metadaten."));
+        await using var stream = File.OpenRead(path);
+        var hash = Convert.ToHexString(await MD5.HashDataAsync(stream, ct)).ToLowerInvariant();
+        if (!CryptographicOperations.FixedTimeEquals(Encoding.ASCII.GetBytes(normalized), Encoding.ASCII.GetBytes(hash)))
+            throw new InvalidDataException(L.T("MD5-Prüfung fehlgeschlagen. Das Archiv wird nicht installiert."));
+    }
     public static string SafeEntryPath(string root, string key)
     {
         var normalized = key.Replace('\\', '/');
@@ -164,21 +175,43 @@ public sealed class FFmpegDownloadService(AppPaths paths, FFmpegVersionService v
         foreach (var entry in archive.Entries)
         {
             ct.ThrowIfCancellationRequested();
+            var key = (entry.Key ?? "").Replace('\\', '/').TrimEnd('/');
+            if (entry.IsDirectory && key is "" or ".") continue;
             _ = SafeEntryPath(root, entry.Key ?? "");
             if (entry.LinkTarget is not null || entry.IsEncrypted) throw new InvalidDataException(L.T("Links und verschlüsselte Archive sind nicht zulässig."));
             declared += entry.Size;
             if (declared > 4L * 1024 * 1024 * 1024) throw new InvalidDataException(L.T("Entpacktes Archiv überschreitet 4 GiB."));
         }
-        using var reader = archive.ExtractAllEntries();
-        long total = 0;
-        while (reader.MoveToNextEntry())
+        if (archive.Type == ArchiveType.SevenZip)
+        {
+            using var reader = archive.ExtractAllEntries();
+            long total = 0;
+            while (reader.MoveToNextEntry())
+            {
+                ct.ThrowIfCancellationRequested();
+                var target = SafeEntryPath(root, reader.Entry.Key ?? "");
+                if (reader.Entry.IsDirectory) { Directory.CreateDirectory(target); continue; }
+                WriteEntry(root, reader.Entry.Key ?? "", reader.OpenEntryStream(), ref total, ct);
+            }
+            return;
+        }
+        long unpacked = 0;
+        foreach (var entry in archive.Entries)
         {
             ct.ThrowIfCancellationRequested();
-            var target = SafeEntryPath(root, reader.Entry.Key ?? "");
-            if (reader.Entry.IsDirectory) { Directory.CreateDirectory(target); continue; }
-            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-            using var input = reader.OpenEntryStream();
-            using var output = new FileStream(target, FileMode.CreateNew);
+            var key = (entry.Key ?? "").Replace('\\', '/').TrimEnd('/');
+            if (entry.IsDirectory && key is "" or ".") continue;
+            if (entry.IsDirectory) { Directory.CreateDirectory(SafeEntryPath(root, entry.Key ?? "")); continue; }
+            WriteEntry(root, entry.Key ?? "", entry.OpenEntryStream(), ref unpacked, ct);
+        }
+    }
+    private static void WriteEntry(string root, string key, Stream input, ref long total, CancellationToken ct)
+    {
+        var target = SafeEntryPath(root, key);
+        Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+        using (input)
+        using (var output = new FileStream(target, FileMode.CreateNew))
+        {
             var buffer = new byte[131072];
             int n;
             while ((n = input.Read(buffer)) > 0)

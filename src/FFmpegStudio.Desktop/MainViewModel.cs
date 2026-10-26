@@ -383,25 +383,10 @@ public sealed partial class MainViewModel : ObservableObject
         adjustingEncoder=true;
         try
         {
-            var v=item.Options.Video;
-            if(defaults)
-            {RestoreEncoderOptions(v);if(CutTimeline.Active(item.Options))v.CudaScale=false;}
-            // Editable ComboBoxes can write empty text while their available items change.
-            // Keep the requested settings and rebind after all dependent lists are ready.
-            var preset=v.Preset??""; var tune=v.Tune??""; var profile=v.Profile??""; var pixelFormat=v.PixelFormat??"";
-            var allowed=VideoEncoderPolicy.IsAllowed(v.Encoder);
-            var e=allowed?Capabilities.Find(v.Encoder):null;
-            EncoderInfo=!allowed?VideoEncoderPolicy.UnavailableMessage(v.Encoder):e is null?L.T("Encoder im Build nicht vorhanden."):$"{e.Family} · {e.Name}\n{e.Description}\n{(e.Hardware?L.T("Hardware-Unterstützung wird vor dem Start tatsächlich geprüft."):L.T("Softwareencoder"))}";
-            Fill(PixelFormats,e?.PixelFormats);
-            Fill(PresetChoices,e?.Options?.FirstOrDefault(o=>o.Name==(v.Encoder=="libaom-av1"?"cpu-used":v.Encoder=="librav1e"?"speed":"preset"))?.Choices);
-            Fill(TuneChoices,e?.Options?.FirstOrDefault(o=>o.Name=="tune")?.Choices);
-            Fill(ProfileChoices,e?.Options?.FirstOrDefault(o=>o.Name=="profile")?.Choices);
-            CanSetPreset=e?.Options?.Any(o=>o.Name is "preset" or "speed" or "cpu-used")==true;
-            CanSetTune=e?.Options?.Any(o=>o.Name=="tune")==true;
-            if(v.Encoder is "libx264" or "libx264rgb" or "libx265") Fill(PresetChoices,["ultrafast","superfast","veryfast","faster","fast","medium","slow","slower","veryslow"]);
-            v.Preset=preset; v.Tune=tune; v.Profile=profile;
-            v.PixelFormat=pixelFormat;
-            Fill(VideoPresetChoices,VideoPresetValues.Select(s=>VideoPresentation.PresetLabel(s,v.Encoder,VideoPresetDefault)),false);
+            var state=EncoderChoices.Apply(item.Options.Video,Capabilities,defaults,CutTimeline.Active(item.Options),RestoreEncoderOptions,
+                PixelFormats,PresetChoices,TuneChoices,ProfileChoices,VideoPresetChoices,
+                ()=>VideoPresetValues.Select(s=>VideoPresentation.PresetLabel(s,item.Options.Video.Encoder,VideoPresetDefault)));
+            EncoderInfo=state.EncoderInfo;CanSetPreset=state.CanSetPreset;CanSetTune=state.CanSetTune;
             RefreshVideoLabels();
             OnPropertyChanged(nameof(SelectedMedia));
             GpuProbeText="";
@@ -417,34 +402,12 @@ public sealed partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(VideoQualityRange));OnPropertyChanged(nameof(VideoQualityHint));
         OnPropertyChanged(nameof(ThreadControlDescription));
     }
-    private static void Fill(ObservableCollection<string> target,IEnumerable<string>? items,bool includeEmpty=true)
-    {
-        var values=(includeEmpty?new[]{""}:Array.Empty<string>()).Concat(items??[]).Distinct().ToArray();
-        for(var i=0;i<values.Length;i++)
-        {
-            if(i<target.Count&&target[i]==values[i]) continue;
-            var existing=target.IndexOf(values[i]);
-            if(existing>=0) target.Move(existing,i); else target.Insert(i,values[i]);
-        }
-        while(target.Count>values.Length) target.RemoveAt(target.Count-1);
-    }
     private void RefreshSummary()
     {
         OnPropertyChanged(nameof(CutSummary));
         if(SelectedMedia is not { } item) { CommandText=""; OutputFileNamePreview=""; ValidationText=""; RefreshCommandPreview(); return; }
-        Conversion=ScalingService.Describe(item.Info,item.Options);
-        var errors=builder.Validate(item.Info,item.Options,Capabilities);
-        ValidationText=string.Join("\n",errors);
-        var estimated=SizeEstimator.Estimate(item.Info,item.Options);
-        EstimateText=estimated.HasValue?L.F($"Bitraten-Schätzung: ca. {estimated/1048576d:0.0} MiB (inkl. 2 % Containerzuschlag)."):L.T("CRF/CQ: Dateigröße unbekannt. Ein Testencode ermöglicht eine grobe Hochrechnung.");
-        try
-        {
-            var output=QueueService.SuggestedOutputPath(item.Info,item.Options,Settings.FileNaming);
-            OutputFileNamePreview=Path.GetFileName(output);
-            var temporary=Path.Combine(Path.GetDirectoryName(output)!,Path.GetFileNameWithoutExtension(output)+".unvollstaendig-VORSCHAU"+Path.GetExtension(output));
-            CommandText=FFmpegCommandBuilder.Display(versions.Active?.FFmpegPath??"ffmpeg.exe",builder.Build(item.Info,item.Options,temporary,Capabilities));
-        }
-        catch(Exception e) { CommandText="";OutputFileNamePreview=""; if(ValidationText.Length==0) ValidationText=e.Message; }
+        var current=EncodeCommandPreview.ForMedia(item.Info,item.Options,Settings,Capabilities,builder,versions.Active?.FFmpegPath??"ffmpeg.exe");
+        Conversion=current.Conversion;ValidationText=current.Validation;EstimateText=current.Estimate;OutputFileNamePreview=current.OutputFileName;CommandText=current.Command;
         RefreshCommandPreview();
     }
     private void RefreshCommandPreview()
