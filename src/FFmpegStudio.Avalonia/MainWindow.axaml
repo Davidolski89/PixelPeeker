@@ -26,9 +26,9 @@
             <WrapPanel Orientation="Horizontal">
                 <Button x:Name="OpenFileButton" Content="{Binding OpenFileLabel}" Click="OpenFileClick" Margin="0,0,8,8"
                         Background="{DynamicResource StudioAccent}" Foreground="#0E2420" Padding="12,6"/>
-                <Button Content="FFmpeg" Command="{Binding InstallFfmpegCommand}" Margin="0,0,8,8" Padding="12,6"/>
+                <Button Content="{Binding InstallFfmpegLabel}" Command="{Binding InstallFfmpegCommand}" Margin="0,0,8,8" Padding="12,6"/>
                 <Button Content="{Binding SystemFfmpegLabel}" Command="{Binding UseSystemFfmpegCommand}" Margin="0,0,8,8" Padding="12,6"/>
-                <Button Content="Update" Command="{Binding CheckFfmpegCommand}" Margin="0,0,8,8" Padding="12,6"/>
+                <Button Content="{Binding CheckFfmpegLabel}" Command="{Binding CheckFfmpegCommand}" Margin="0,0,8,8" Padding="12,6"/>
                 <Button x:Name="SettingsButton" Content="{Binding SettingsLabel}" Command="{Binding EditSettingsCommand}" Margin="0,0,8,8" Padding="12,6"/>
             </WrapPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
@@ -40,7 +40,7 @@
             <Border Background="{DynamicResource StudioSurface}" BorderBrush="{DynamicResource StudioBorder}" BorderThickness="1" CornerRadius="8" Padding="10">
                 <DockPanel>
                     <TextBlock DockPanel.Dock="Top" Text="{Binding LibraryHeading}" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                    <Button DockPanel.Dock="Bottom" Content="Entfernen" Command="{Binding RemoveMediaCommand}" Margin="0,8,0,0"/>
+                    <Button DockPanel.Dock="Bottom" Content="{Binding RemoveLabel}" Command="{Binding RemoveMediaCommand}" Margin="0,8,0,0"/>
                     <ListBox x:Name="MediaList" ItemsSource="{Binding Media}" SelectedItem="{Binding SelectedMedia}" Background="Transparent" BorderThickness="0">
                         <ListBox.ItemTemplate>
                             <DataTemplate x:DataType="vm:EditorMedia">
@@ -65,10 +65,10 @@
                     </Grid>
                 </Border>
                 <WrapPanel Grid.Row="1">
-                    <Button Content="Play" Command="{Binding PlayCommand}" Margin="0,0,6,6" Padding="10,4"/>
-                    <Button Content="Pause" Command="{Binding PauseCommand}" Margin="0,0,6,6" Padding="10,4"/>
-                    <Button Content="Stop" Command="{Binding StopPlaybackCommand}" Margin="0,0,6,6" Padding="10,4"/>
-                    <Button Content="Vorschau" Command="{Binding ShowPreviewCommand}" Margin="0,0,6,6" Padding="10,4"/>
+                    <Button x:Name="PlayButton" Content="{Binding PlayLabel}" Command="{Binding PlayCommand}" Margin="0,0,6,6" Padding="10,4"/>
+                    <Button x:Name="PauseButton" Content="{Binding PauseLabel}" Command="{Binding PauseCommand}" Margin="0,0,6,6" Padding="10,4"/>
+                    <Button x:Name="StopButton" Content="{Binding StopLabel}" Command="{Binding StopPlaybackCommand}" Margin="0,0,6,6" Padding="10,4"/>
+                    <Button Content="{Binding PreviewLabel}" Command="{Binding ShowPreviewCommand}" Margin="0,0,6,6" Padding="10,4"/>
                     <Button x:Name="PreviousFrameButton" Content="{Binding PreviousFrameLabel}" Command="{Binding PreviousFrameCommand}" Margin="0,0,6,6" Padding="10,4"/>
                     <Button x:Name="NextFrameButton" Content="{Binding NextFrameLabel}" Command="{Binding NextFrameCommand}" Margin="0,0,6,6" Padding="10,4"/>
                     <TextBlock Text="s" VerticalAlignment="Center" Margin="8,0,4,0" Foreground="{DynamicResource StudioMuted}"/>
@@ -79,10 +79,10 @@
                         <TextBlock DockPanel.Dock="Top" Text="{Binding CutHeading}" FontWeight="SemiBold" Margin="0,0,0,6"/>
                         <TextBlock DockPanel.Dock="Top" Text="{Binding CutSummary}" TextWrapping="Wrap" Foreground="{DynamicResource StudioMuted}" Margin="0,0,0,6"/>
                         <WrapPanel DockPanel.Dock="Top">
-                            <Button Content="Start" Command="{Binding MarkCutStartCommand}" Margin="0,0,6,6" Padding="8,4"/>
-                            <Button Content="Ende" Command="{Binding MarkCutEndCommand}" Margin="0,0,6,6" Padding="8,4"/>
-                            <Button Content="Entfernen" Command="{Binding RemoveCutCommand}" Margin="0,0,6,6" Padding="8,4"/>
-                            <Button Content="Leeren" Command="{Binding ClearCutsCommand}" Margin="0,0,6,6" Padding="8,4"/>
+                            <Button Content="{Binding CutStartLabel}" Command="{Binding MarkCutStartCommand}" Margin="0,0,6,6" Padding="8,4"/>
+                            <Button Content="{Binding CutEndLabel}" Command="{Binding MarkCutEndCommand}" Margin="0,0,6,6" Padding="8,4"/>
+                            <Button Content="{Binding RemoveLabel}" Command="{Binding RemoveCutCommand}" Margin="0,0,6,6" Padding="8,4"/>
+                            <Button Content="{Binding ClearCutsLabel}" Command="{Binding ClearCutsCommand}" Margin="0,0,6,6" Padding="8,4"/>
                         </WrapPanel>
                         <ListBox ItemsSource="{Binding CutEntries}" SelectedItem="{Binding SelectedCut}" MaxHeight="90" Background="Transparent" BorderThickness="0">
                             <ListBox.ItemTemplate>
@@ -99,19 +99,23 @@
                     <ScrollViewer>
                         <StackPanel Spacing="6" Margin="8" IsEnabled="{Binding HasEditableMedia}">
                             <TextBlock Text="{Binding EncoderInfo}" TextWrapping="Wrap" Foreground="{DynamicResource StudioMuted}"/>
-                            <TextBlock Text="Encoder"/>
+                            <TextBlock Text="{Binding EncoderLabel}"/>
                             <ComboBox ItemsSource="{Binding VideoEncoders}" SelectedItem="{Binding SelectedEncoder}"/>
-                            <TextBlock Text="Container"/>
+                            <TextBlock Text="{Binding ContainerLabel}"/>
                             <ComboBox ItemsSource="{x:Static vm:EditorViewModel.Containers}" SelectedItem="{Binding SelectedContainer}"/>
-                            <TextBlock Text="Qualität"/>
+                            <TextBlock Text="{Binding QualityLabel}"/>
                             <NumericUpDown Value="{Binding VideoQuality}" Minimum="0" Maximum="63" Increment="0.5" FormatString="0.##"/>
-                            <TextBlock Text="Preset" IsVisible="{Binding CanSetPreset}"/>
+                            <TextBlock Text="{Binding PresetLabel}" IsVisible="{Binding CanSetPreset}"/>
                             <ComboBox ItemsSource="{Binding PresetChoices}" SelectedItem="{Binding VideoPreset}" IsVisible="{Binding CanSetPreset}"/>
+                            <TextBlock Text="{Binding FileNameHeading}" FontWeight="SemiBold"/>
+                            <TextBlock x:Name="FileNamePreviewText" Text="{Binding OutputFileNamePreview}" TextWrapping="Wrap"/>
                             <TextBlock Text="{Binding Conversion}" TextWrapping="Wrap" Foreground="{DynamicResource StudioMuted}"/>
                             <Button x:Name="ExpertButton" Content="{Binding ExpertLabel}" Command="{Binding ExpertOptionsCommand}" HorizontalAlignment="Left" Padding="8,4"/>
                             <TextBlock Text="{Binding TestEncodeLabel}"/>
                             <NumericUpDown Value="{Binding TestSeconds}" Minimum="0.1" Maximum="120" Increment="1" FormatString="0.#" Width="120"/>
                             <Button x:Name="TestEncodeButton" Content="{Binding TestEncodeLabel}" Command="{Binding TestEncodeCommand}" HorizontalAlignment="Left" Padding="8,4"/>
+                            <TextBlock Text="{Binding AudioHeading}" FontWeight="SemiBold"/>
+                            <ContentControl x:Name="AudioHost"/>
                             <TextBlock Text="{Binding SubtitleHeading}" FontWeight="SemiBold"/>
                             <ListBox ItemsSource="{Binding SubtitleTracks}" SelectedItem="{Binding SelectedSubtitle}" MaxHeight="90" Background="Transparent">
                                 <ListBox.ItemTemplate>
@@ -127,17 +131,17 @@
                 <TabItem Header="{Binding FilterHeading}">
                     <ScrollViewer>
                         <StackPanel Spacing="6" Margin="8" IsEnabled="{Binding HasEditableMedia}">
-                            <TextBlock Text="Breite / Höhe"/>
+                            <TextBlock Text="{Binding WidthHeightLabel}"/>
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <NumericUpDown Value="{Binding OutputWidth}" Minimum="0" Maximum="7680" Increment="2" Width="120"/>
                                 <NumericUpDown Value="{Binding OutputHeight}" Minimum="0" Maximum="4320" Increment="2" Width="120"/>
                             </StackPanel>
-                            <CheckBox Content="Crop" IsChecked="{Binding CropEnabled}"/>
-                            <Button Content="Balken erkennen" Command="{Binding DetectCropCommand}" HorizontalAlignment="Left" Padding="8,4"/>
+                            <CheckBox Content="{Binding CropLabel}" IsChecked="{Binding CropEnabled}"/>
+                            <Button Content="{Binding DetectCropLabel}" Command="{Binding DetectCropCommand}" HorizontalAlignment="Left" Padding="8,4"/>
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>
-                <TabItem Header="Presets">
+                <TabItem Header="{Binding PresetsHeading}">
                     <StackPanel Spacing="6" Margin="8">
                         <ComboBox ItemsSource="{Binding Presets}" SelectedItem="{Binding SelectedPreset}">
                             <ComboBox.ItemTemplate>
@@ -147,24 +151,25 @@
                             </ComboBox.ItemTemplate>
                         </ComboBox>
                         <WrapPanel>
-                            <Button Content="Speichern" Command="{Binding SavePresetCommand}" Margin="0,0,6,6" Padding="8,4"/>
-                            <Button Content="Löschen" Command="{Binding DeletePresetCommand}" Margin="0,0,6,6" Padding="8,4"/>
-                            <Button Content="Import" Command="{Binding ImportPresetCommand}" Margin="0,0,6,6" Padding="8,4"/>
-                            <Button Content="Export" Command="{Binding ExportPresetCommand}" Margin="0,0,6,6" Padding="8,4"/>
+                            <Button Content="{Binding SavePresetLabel}" Command="{Binding SavePresetCommand}" Margin="0,0,6,6" Padding="8,4"/>
+                            <Button Content="{Binding DeletePresetLabel}" Command="{Binding DeletePresetCommand}" Margin="0,0,6,6" Padding="8,4"/>
+                            <Button Content="{Binding ImportPresetLabel}" Command="{Binding ImportPresetCommand}" Margin="0,0,6,6" Padding="8,4"/>
+                            <Button Content="{Binding ExportPresetLabel}" Command="{Binding ExportPresetCommand}" Margin="0,0,6,6" Padding="8,4"/>
                         </WrapPanel>
                     </StackPanel>
                 </TabItem>
                 <TabItem Header="{Binding QueueHeading}">
                     <DockPanel Margin="8">
                         <WrapPanel DockPanel.Dock="Top">
-                            <Button Content="Queue" Command="{Binding AddQueueCommand}" Margin="0,0,6,6" Padding="8,4"/>
-                            <Button Content="Start" Command="{Binding StartQueueCommand}" Margin="0,0,6,6" Padding="8,4"/>
-                            <Button Content="Stop" Command="{Binding StopQueueCommand}" Margin="0,0,6,6" Padding="8,4"/>
-                            <Button Content="Abbrechen" Command="{Binding CancelJobCommand}" Margin="0,0,6,6" Padding="8,4"/>
-                            <Button Content="Entfernen" Command="{Binding RemoveJobCommand}" Margin="0,0,6,6" Padding="8,4"/>
+                            <Button x:Name="AddQueueButton" Content="{Binding AddQueueLabel}" Command="{Binding AddQueueCommand}" Margin="0,0,6,6" Padding="8,4"/>
+                            <Button x:Name="StartQueueButton" Content="{Binding StartQueueLabel}" Command="{Binding StartQueueCommand}" Margin="0,0,6,6" Padding="8,4"/>
+                            <Button Content="{Binding StopQueueLabel}" Command="{Binding StopQueueCommand}" Margin="0,0,6,6" Padding="8,4"/>
+                            <Button Content="{Binding CancelJobLabel}" Command="{Binding CancelJobCommand}" Margin="0,0,6,6" Padding="8,4"/>
+                            <Button Content="{Binding RemoveLabel}" Command="{Binding RemoveJobCommand}" Margin="0,0,6,6" Padding="8,4"/>
                             <Button x:Name="AnalyzeButton" Content="{Binding AnalyzeLabel}" Command="{Binding AnalyzeQualityCommand}" Margin="0,0,6,6" Padding="8,4"/>
                             <Button x:Name="CancelAnalysisButton" Content="{Binding CancelAnalysisLabel}" Command="{Binding CancelAnalysisCommand}" Margin="0,0,6,6" Padding="8,4"/>
                             <Button x:Name="CompareButton" Content="{Binding CompareLabel}" Command="{Binding CompareEncodesCommand}" Margin="0,0,6,6" Padding="8,4"/>
+                            <Button x:Name="ResultsButton" Content="{Binding ResultsLabel}" Command="{Binding ShowResultsCommand}" Margin="0,0,6,6" Padding="8,4"/>
                         </WrapPanel>
                         <TextBlock DockPanel.Dock="Top" Text="{Binding QueueSummary}" Foreground="{DynamicResource StudioMuted}" Margin="0,0,0,6"/>
                         <Grid ColumnDefinitions="*,*">
@@ -193,6 +198,8 @@
             </TabControl>
         </Grid>
         <StackPanel Grid.Row="3" Spacing="2">
+            <TextBlock Text="{Binding HardwareHeading}" FontWeight="SemiBold"/>
+            <TextBlock x:Name="HardwareTextBlock" Text="{Binding HardwareText}" TextWrapping="Wrap"/>
             <TextBlock Text="{Binding DistributionNote}" TextWrapping="Wrap" Foreground="{DynamicResource StudioMuted}"/>
             <TextBlock x:Name="StatusText" Text="{Binding StatusText}" TextWrapping="Wrap"/>
             <TextBlock x:Name="MediaDetailsText" Text="{Binding MediaDetails}" TextWrapping="Wrap" MaxHeight="72" Foreground="{DynamicResource StudioMuted}"/>

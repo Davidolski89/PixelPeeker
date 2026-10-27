@@ -35,6 +35,8 @@ public static class L
         ScaleMode.UHD8K => "8K UHD", ScaleMode.UHD4K => "4K UHD", ScaleMode.QHD1440 => "1440p QHD",
         ScaleMode.FullHD1080 => "1080p Full HD", ScaleMode.HD720 => "720p HD", ScaleMode.SD480 => "480p SD",
         CompletionAction.AnwendungSchließen => "Anwendung schließen",
+        TrackAction.Kopieren => "Kopieren", TrackAction.Encodieren => "Encodieren",
+        TrackAction.Entfernen => "Entfernen", TrackAction.Einbrennen => "Einbrennen",
         ThreadControlMode.FesteAnzahl => "Feste Threadanzahl", ThreadControlMode.CPUAnteil => "Anteil der CPU-Kerne", _ => value.ToString()
     });
     public static string ResourceKey(string source) => "Loc." + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(source)))[..16];

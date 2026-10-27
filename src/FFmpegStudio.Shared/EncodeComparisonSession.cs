@@ -100,4 +100,95 @@ public sealed partial class EncodeComparisonSession : ObservableObject
         }
         finally { Loading = false; }
     }
+
+    public ObservableCollection<ComparisonSampleShot> Samples { get; } = [];
+    [ObservableProperty] private ComparisonSampleShot? selectedSample;
+    [ObservableProperty] private ComparisonFocus focus = ComparisonFocus.A;
+
+    public string? FocusPath => Focus switch
+    {
+        ComparisonFocus.Original => OriginalPath,
+        ComparisonFocus.B => PathB,
+        _ => PathA
+    };
+
+    partial void OnFocusChanged(ComparisonFocus value) => OnPropertyChanged(nameof(FocusPath));
+    partial void OnPathAChanged(string? value) => OnPropertyChanged(nameof(FocusPath));
+    partial void OnPathBChanged(string? value) => OnPropertyChanged(nameof(FocusPath));
+    partial void OnOriginalPathChanged(string? value) => OnPropertyChanged(nameof(FocusPath));
+
+    public IReadOnlyList<ComparisonInterval> CoverageA => ComparisonSamples.Coverage(SelectedA, OffsetA);
+    public IReadOnlyList<ComparisonInterval> CoverageB => ComparisonSamples.Coverage(CompareTwo ? SelectedB : null, OffsetB);
+
+    public void SelectSample(ComparisonSampleShot sample)
+    {
+        SelectedSample = sample;
+        Position = sample.Seconds;
+        OriginalPath = sample.OriginalPath;
+        PathA = sample.PathA;
+        PathB = sample.PathB;
+        OnPropertyChanged(nameof(FocusPath));
+    }
+
+    public async Task GenerateSamplesAsync(CancellationToken ct = default)
+    {
+        if (SelectedA is not { } first)
+        {
+            Status = L.T("Einen oder zwei Encodes wählen oder Dateien öffnen.");
+            return;
+        }
+        var duration = first.Input.Job?.Source.Duration ?? first.Input.Media.Duration;
+        if (duration is not > 0)
+        {
+            Status = L.T("Dauer unbekannt.");
+            return;
+        }
+        Loading = true;
+        Samples.Clear();
+        try
+        {
+            foreach (var fraction in ComparisonSamples.Fractions)
+            {
+                ct.ThrowIfCancellationRequested();
+                Position = ComparisonSamples.Position(duration.Value, fraction, first.Input.Job?.Options, OffsetA);
+                await LoadAsync(FrameSeek.Nearest, ct);
+                Samples.Add(new ComparisonSampleShot(Position, PathA, PathB, OriginalPath));
+            }
+            if (Samples.Count > 0) SelectSample(Samples[0]);
+            Status = Samples.Count + " " + L.T("Beispielbilder");
+        }
+        finally { Loading = false; }
+    }
+}
+
+public enum ComparisonFocus { Original, A, B }
+
+public sealed record ComparisonSampleShot(double Seconds, string? PathA, string? PathB, string? OriginalPath)
+{
+    public string Label => $"{Seconds:0.000} s";
+}
+
+public static class ComparisonSamples
+{
+    public static IReadOnlyList<double> Fractions { get; } = [0.1, 0.3, 0.5, 0.7, 0.9];
+
+    public static double Position(double duration, double fraction, EncodingOptions? options, double offset)
+    {
+        if (!double.IsFinite(duration) || duration <= 0) throw new ArgumentOutOfRangeException(nameof(duration));
+        if (!double.IsFinite(fraction) || fraction is < 0 or > 1) throw new ArgumentOutOfRangeException(nameof(fraction));
+        var output = duration * fraction;
+        return options is null ? output + offset : CutTimeline.SourceTime(options, output);
+    }
+
+    public static IReadOnlyList<ComparisonInterval> Coverage(EncodeComparisonChoice? choice, double offset)
+    {
+        if (choice is null) return [];
+        if (choice.Input.Job is not { } job)
+        {
+            var length = choice.Input.Media.Duration ?? 0;
+            return ComparisonTimeline.Coverage(length, null, null, length, offset);
+        }
+        var duration = job.Source.Duration ?? job.OutputInfo?.Duration ?? choice.Input.Media.Duration ?? 0;
+        return ComparisonTimeline.Coverage(duration, job.Options, job.Source.Duration, job.OutputInfo?.Duration ?? choice.Input.Media.Duration, offset);
+    }
 }

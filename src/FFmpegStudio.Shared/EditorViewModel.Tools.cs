@@ -24,7 +24,14 @@ public sealed partial class EditorViewModel
             nameof(CommandHeading), nameof(JobHeading), nameof(EncodeHeading), nameof(FilterHeading), nameof(CutHeading),
             nameof(SettingsLabel), nameof(CompareLabel), nameof(AnalyzeLabel), nameof(CancelAnalysisLabel), nameof(ExpertLabel), nameof(TestEncodeLabel),
             nameof(ExportSubtitleLabel), nameof(SystemFfmpegLabel), nameof(PreviousFrameLabel), nameof(NextFrameLabel),
-            nameof(SubtitleHeading), nameof(CutSummary), nameof(SelectedJobDetails), nameof(SubtitleTracks)
+            nameof(SubtitleHeading), nameof(CutSummary), nameof(SelectedJobDetails), nameof(SubtitleTracks),
+            nameof(AudioHeading), nameof(HardwareHeading), nameof(ResultsLabel), nameof(FileNameHeading), nameof(RemoveLabel), nameof(PlayLabel),
+            nameof(PauseLabel), nameof(StopLabel), nameof(PreviewLabel), nameof(CutStartLabel), nameof(CutEndLabel),
+            nameof(ClearCutsLabel), nameof(EncoderLabel), nameof(ContainerLabel), nameof(QualityLabel), nameof(PresetLabel),
+            nameof(WidthHeightLabel), nameof(DetectCropLabel), nameof(CropLabel), nameof(PresetsHeading), nameof(SavePresetLabel),
+            nameof(DeletePresetLabel), nameof(ImportPresetLabel), nameof(ExportPresetLabel), nameof(AddQueueLabel),
+            nameof(StartQueueLabel), nameof(StopQueueLabel), nameof(CancelJobLabel), nameof(InstallFfmpegLabel),
+            nameof(CheckFfmpegLabel), nameof(HardwareText), nameof(OutputFileNamePreview), nameof(AudioTracks)
         })
             OnPropertyChanged(name);
     }

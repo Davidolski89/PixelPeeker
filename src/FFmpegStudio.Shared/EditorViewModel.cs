@@ -34,6 +34,8 @@ public sealed partial class EditorViewModel : ObservableObject
     private readonly SubtitleService subtitles;
     private readonly EncodeComparisonService comparison;
     private readonly FolderWatchService watcher;
+    private readonly IHardwareMonitor hardware;
+    private readonly CancellationTokenSource background = new();
     private readonly List<INotifyPropertyChanged> observed = [];
     private readonly HashSet<string> importing = new(StringComparer.OrdinalIgnoreCase);
     private INotifyCollectionChanged? observedCuts;
@@ -47,7 +49,7 @@ public sealed partial class EditorViewModel : ObservableObject
         FFmpegCapabilityService capabilityService, MediaProbeService probe, PreviewService preview, FrameNavigationService frames,
         QueueService queue, QueueStore store, PresetService presets, FFmpegCommandBuilder builder, LoggingService log,
         IPlaybackSession playback, IEditorPrompts prompts, IUiMarshal ui, AppPaths paths, QualityAnalysisService quality,
-        SubtitleService subtitles, EncodeComparisonService comparison, FolderWatchService watcher)
+        SubtitleService subtitles, EncodeComparisonService comparison, FolderWatchService watcher, IHardwareMonitor hardware)
     {
         this.settings = settings;
         this.versions = versions;
@@ -69,6 +71,7 @@ public sealed partial class EditorViewModel : ObservableObject
         this.subtitles = subtitles;
         this.comparison = comparison;
         this.watcher = watcher;
+        this.hardware = hardware;
         watcher.OnReady = async (path, rule, ct) =>
         {
             var active = versions.Active ?? throw new InvalidOperationException(L.T("FFmpeg fehlt für den Ordnerimport."));
@@ -92,6 +95,7 @@ public sealed partial class EditorViewModel : ObservableObject
         });
         queue.JobAdded += job => ui.Invoke(() => { Jobs.Add(job); SelectedJob = job; UpdateQueueSummary(); });
         queue.JobChanged += _ => ui.Invoke(() => { UpdateQueueSummary(); OnPropertyChanged(nameof(SelectedJobDetails)); RefreshSummary(); });
+        queue.BatchCompleted += () => ui.Invoke(() => _ = CompleteBatchAsync());
     }
 
     public IPlaybackSession Playback { get; }
@@ -226,6 +230,50 @@ public sealed partial class EditorViewModel : ObservableObject
         ? L.T("Einen Job auswählen, um Ergebnis, Protokoll und Messwerte zu sehen.")
         : string.Join(Environment.NewLine, new[] { SelectedJob.Name, SelectedJob.DisplayStatus, SelectedJob.OutputPath, SelectedJob.Error, SelectedJob.AnalysisStatus, SelectedJob.AnalysisDetails }.Where(part => !string.IsNullOrWhiteSpace(part)));
     public IReadOnlyList<SubtitleTrackOptions> SubtitleTracks => SelectedMedia?.Options?.Subtitles.ToArray() ?? [];
+    public IReadOnlyList<AudioTrackOptions> AudioTracks => SelectedMedia?.Options?.Audio.ToArray() ?? [];
+    private AudioTrackOptions? selectedAudio;
+    public AudioTrackOptions? SelectedAudio
+    {
+        get => selectedAudio;
+        set
+        {
+            if (ReferenceEquals(selectedAudio, value)) return;
+            selectedAudio = value;
+            OnPropertyChanged();
+        }
+    }
+    public string OutputFileNamePreview => FileNamePreview.Of(SelectedMedia?.Info, SelectedMedia?.Options, Settings.FileNaming);
+    public string HardwareText { get; private set; } = "";
+    public string AudioHeading => L.T("Audio");
+    public string HardwareHeading => L.T("Hardware");
+    public string ResultsLabel => L.T("Ergebnisse");
+    public string FileNameHeading => L.T("Dateiname");
+    public string RemoveLabel => L.T("Entfernen");
+    public string PlayLabel => L.T("Abspielen");
+    public string PauseLabel => L.T("Pause");
+    public string StopLabel => L.T("Stopp");
+    public string PreviewLabel => L.T("Vorschau");
+    public string CutStartLabel => L.T("Start");
+    public string CutEndLabel => L.T("Ende");
+    public string ClearCutsLabel => L.T("Leeren");
+    public string EncoderLabel => L.T("Encoder");
+    public string ContainerLabel => L.T("Container");
+    public string QualityLabel => L.T("Qualität");
+    public string PresetLabel => L.T("Preset");
+    public string WidthHeightLabel => L.T("Breite / Höhe");
+    public string DetectCropLabel => L.T("Schwarze Balken erkennen …");
+    public string CropLabel => L.T("Crop aktivieren");
+    public string PresetsHeading => L.T("Presets");
+    public string SavePresetLabel => L.T("Speichern");
+    public string DeletePresetLabel => L.T("Löschen");
+    public string ImportPresetLabel => L.T("Import");
+    public string ExportPresetLabel => L.T("Export");
+    public string AddQueueLabel => L.T("Queue");
+    public string StartQueueLabel => L.T("Start");
+    public string StopQueueLabel => L.T("Stopp");
+    public string CancelJobLabel => L.T("Abbrechen");
+    public string InstallFfmpegLabel => L.T("FFmpeg installieren");
+    public string CheckFfmpegLabel => L.T("Updates prüfen");
     public bool HasEditableMedia => SelectedMedia?.CanEdit == true;
 
     public async Task InitializeAsync()
@@ -267,7 +315,77 @@ public sealed partial class EditorViewModel : ObservableObject
         if (versions.Active is null && settings.Current.AutoInstall && distribution.SupportsManagedInstall)
             await InstallFfmpegAsync();
         watcher.Start();
+        _ = MonitorLoopAsync(background.Token);
     }
+
+    public Action? CloseRequested { get; set; }
+    public Func<CompletionAction, Task<bool>>? CompletionRequested { get; set; }
+    public Func<IReadOnlyList<EncodingJob>, Task>? ResultsRequested { get; set; }
+
+    public void StopBackground() => background.Cancel();
+
+    private async Task MonitorLoopAsync(CancellationToken ct)
+    {
+        try
+        {
+            while (!ct.IsCancellationRequested)
+            {
+                var snapshot = await hardware.ReadAsync(ct);
+                ui.Invoke(() => { HardwareText = HardwareReadout.Format(snapshot); OnPropertyChanged(nameof(HardwareText)); });
+                await Task.Delay(3000, ct);
+            }
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception e)
+        {
+            log.Write(L.T("Hardwaremonitor nicht verfügbar."), e);
+            ui.Invoke(() => { HardwareText = L.T("Hardwaremonitor nicht verfügbar."); OnPropertyChanged(nameof(HardwareText)); });
+        }
+    }
+
+    private async Task CompleteBatchAsync()
+    {
+        var action = Settings.CompletionAction;
+        if (action == CompletionAction.Nichts) return;
+        if (Jobs.Any(job => job.Status != JobStatus.Abgeschlossen) || queue.IsRunning) return;
+        if (CompletionRequested is not null && !await CompletionRequested(action))
+        {
+            StatusText = L.T("Abgebrochen");
+            return;
+        }
+        if (action == CompletionAction.AnwendungSchließen)
+        {
+            CloseRequested?.Invoke();
+            return;
+        }
+        if (action == CompletionAction.Signalton)
+        {
+            SessionAlerts.Beep();
+            StatusText = SessionAlerts.Notify();
+            return;
+        }
+        if (action == CompletionAction.Benachrichtigung)
+        {
+            StatusText = SessionAlerts.Notify();
+            return;
+        }
+        if (action is CompletionAction.Energiesparen or CompletionAction.Herunterfahren)
+        {
+            if (CompletionRequested is null)
+            {
+                StatusText = L.T("Diese Energieaktion wird hier nicht unterstützt.");
+                return;
+            }
+            Settings.CompletionAction = CompletionAction.Nichts;
+            await settings.SaveAsync();
+            StatusText = await SessionPower.ExecuteAsync(action);
+            return;
+        }
+        StatusText = L.EnumText(action);
+    }
+
+    [RelayCommand]
+    private Task ShowResultsAsync() => ResultsRequested?.Invoke(Jobs.ToArray()) ?? Task.CompletedTask;
 
     [RelayCommand]
     private Task ImportFilesAsync() => RunAsync(L.T("Dateien werden analysiert …"), async _ =>
@@ -354,6 +472,8 @@ public sealed partial class EditorViewModel : ObservableObject
             Observe(options);
             Observe(options.Video);
             Observe(options.Filters);
+            foreach (var audio in options.Audio) Observe(audio);
+            SelectedAudio = options.Audio.FirstOrDefault();
             MediaDetails = value.Details;
             PreviewPath = value.ThumbnailPath;
             var matching = Presets.FirstOrDefault(preset => preset.Name == options.PresetName);
@@ -364,9 +484,12 @@ public sealed partial class EditorViewModel : ObservableObject
         {
             MediaDetails = value?.Details ?? L.T("Noch keine Datei ausgewählt.");
             PreviewPath = null;
+            SelectedAudio = null;
         }
         OnPropertyChanged(nameof(HasEditableMedia));
         OnPropertyChanged(nameof(SubtitleTracks));
+        OnPropertyChanged(nameof(AudioTracks));
+        OnPropertyChanged(nameof(OutputFileNamePreview));
         SelectedSubtitle = value?.Options?.Subtitles.FirstOrDefault();
         OnPropertyChanged(nameof(SelectedEncoder));
         OnPropertyChanged(nameof(SelectedContainer));
@@ -467,6 +590,8 @@ public sealed partial class EditorViewModel : ObservableObject
         ValidationText = current.Validation;
         CommandText = current.Command.Length == 0 ? current.Validation : current.Command;
         OnPropertyChanged(nameof(CutSummary));
+        OnPropertyChanged(nameof(OutputFileNamePreview));
+        OnPropertyChanged(nameof(AudioTracks));
     }
 
     private void RefreshCuts()

@@ -90,3 +90,58 @@ jobs:
           xvfb-run -a --server-args="-screen 0 1280x720x24" \
             dotnet run --project src/FFmpegStudio.Avalonia/FFmpegStudio.Avalonia.csproj \
             -c Release --no-build -- --smoke
+
+  packages:
+    name: Ubuntu (Linux packages)
+    needs: ubuntu
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: "**/*.csproj"
+
+      - name: Install PowerShell and display libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            xvfb \
+            libx11-6 \
+            libice6 \
+            libsm6 \
+            libfontconfig1 \
+            libfreetype6 \
+            libxext6 \
+            libxcursor1 \
+            libxi6 \
+            libxrandr2 \
+            libgl1 \
+            fonts-dejavu-core
+          curl -fsSL -o /tmp/powershell.tar.gz \
+            https://github.com/PowerShell/PowerShell/releases/download/v7.5.4/powershell-7.5.4-linux-x64.tar.gz
+          sudo mkdir -p /opt/microsoft/powershell/7
+          sudo tar -xzf /tmp/powershell.tar.gz -C /opt/microsoft/powershell/7
+          sudo chmod +x /opt/microsoft/powershell/7/pwsh
+          sudo ln -sfn /opt/microsoft/powershell/7/pwsh /usr/local/bin/pwsh
+          pwsh -NoProfile -Command '$PSVersionTable.PSVersion'
+
+      # Tests already ran in the ubuntu job. This publishes portable tar.gz and
+      # AppImage files and smokes the x64 packages. It does not create a GitHub Release.
+      - name: Package Avalonia for Linux
+        run: pwsh -File ./Publish-Linux.ps1 -SkipTests
+
+      - name: Upload Linux packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: pixelpeeker-linux-packages
+          if-no-files-found: error
+          path: |
+            artifacts/PixelPeeker-*-linux-x64.tar.gz
+            artifacts/PixelPeeker-*-linux-arm64.tar.gz
+            artifacts/PixelPeeker-*-linux-x64.AppImage
+            artifacts/PixelPeeker-*-linux-arm64.AppImage

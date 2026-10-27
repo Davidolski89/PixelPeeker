@@ -144,4 +144,108 @@ public sealed class EditorFeatureTests
             if (Directory.Exists(root)) Directory.Delete(root, true);
         }
     }
+
+    [Fact]
+    public void Comparison_samples_use_the_source_clock_and_known_coverage()
+    {
+        Assert.Equal(new[] { 0.1, 0.3, 0.5, 0.7, 0.9 }, ComparisonSamples.Fractions);
+        Assert.Equal(10, ComparisonSamples.Position(100, 0.1, null, 0));
+        var clipped = new EncodingOptions { ClipStart = 5 };
+        Assert.Equal(15, ComparisonSamples.Position(100, 0.1, clipped, 0));
+        Assert.Throws<ArgumentOutOfRangeException>(() => ComparisonSamples.Position(0, 0.1, null, 0));
+        var media = new MediaInfo { Path = Path.GetFullPath("clip.mkv"), Duration = 20, Streams = [new() { Type = "video", Width = 320, Height = 180 }] };
+        var choice = new EncodeComparisonChoice(new EncodeComparisonInput(media, new Toolchain("test", "ffmpeg", "ffprobe", false)));
+        var coverage = ComparisonSamples.Coverage(choice, 0);
+        Assert.NotEmpty(coverage);
+        Assert.Equal(ComparisonAvailability.Unknown, coverage[0].Availability);
+    }
+
+    [Fact]
+    public void Quality_chart_sorts_the_weakest_frame_and_spaces_axes()
+    {
+        var frames = new[]
+        {
+            new QualityFrame(2, 90, 0.9, 40),
+            new QualityFrame(1, 10, 0.2, 20)
+        };
+        Assert.Equal(1, QualityChart.Sorted(frames, "VMAF")[0].Seconds);
+        Assert.Equal(2, QualityChart.Sorted(frames, "PSNR")[1].Seconds);
+        var axis = QualityChart.Axis(0, 50, 2);
+        Assert.Equal(3, axis.Count);
+        Assert.Equal(0, axis[0]);
+        Assert.Equal(25, axis[1]);
+        Assert.Equal(50, axis[2]);
+        Assert.Empty(QualityChart.Axis(double.NaN, 1));
+    }
+
+    [Fact]
+    public void File_name_preview_uses_the_selected_clip()
+    {
+        var media = new MediaInfo
+        {
+            Path = Path.GetFullPath("holiday clip.mkv"),
+            Streams = [new() { Type = "video", Codec = "h264", Width = 1280, Height = 720 }]
+        };
+        var options = EncodingOptions.ForMedia(media);
+        options.Video.Encoder = "libx264";
+        options.Container = "mkv";
+        var naming = new FileNamingSettings { Enabled = true, IncludeResolution = true, IncludeCodec = false };
+        var preview = FileNamePreview.Of(media, options, naming, new DateTimeOffset(2026, 10, 26, 12, 0, 0, TimeSpan.Zero));
+        Assert.StartsWith("holiday clip_1280x720", preview);
+        Assert.EndsWith(".mkv", preview);
+        Assert.Equal(L.T("Eine Videodatei auswählen."), FileNamePreview.Of(null, options, naming));
+    }
+
+    [Fact]
+    public void Session_power_prefers_systemctl_and_does_nothing_when_both_tools_are_missing()
+    {
+        var poweroff = SessionPower.Resolve(CompletionAction.Herunterfahren, name => name == "systemctl");
+        Assert.Equal("systemctl", poweroff!.File);
+        Assert.Equal("poweroff", Assert.Single(poweroff.Arguments));
+        var suspend = SessionPower.Resolve(CompletionAction.Energiesparen, name => name == "loginctl");
+        Assert.Equal("loginctl", suspend!.File);
+        Assert.Equal("suspend", Assert.Single(suspend.Arguments));
+        Assert.Null(SessionPower.Resolve(CompletionAction.Herunterfahren, _ => false));
+        Assert.Null(SessionPower.Resolve(CompletionAction.Nichts, _ => true));
+        var language = L.Language;
+        try
+        {
+            L.SetLanguage("de");
+            Assert.Contains("Countdown", SessionPower.Prompt(CompletionAction.Energiesparen));
+            L.SetLanguage("en");
+            Assert.Contains("countdown", SessionPower.Prompt(CompletionAction.Herunterfahren));
+        }
+        finally { L.SetLanguage(language); }
+    }
+
+    [Fact]
+    public void Hardware_text_and_result_rows_describe_one_completed_source()
+    {
+        var text = HardwareReadout.Format(new SensorSnapshot(12.5, null, []));
+        Assert.Contains("12.5", text);
+        Assert.Contains("NVIDIA", text);
+        var source = new MediaInfo { Path = Path.GetFullPath("clip.mkv"), Streams = [new() { Type = "video", Width = 640, Height = 360 }] };
+        var done = new EncodingJob
+        {
+            Status = JobStatus.Abgeschlossen,
+            Source = source,
+            OutputBytes = 2 * 1048576,
+            Speed = "1.5x",
+            StartedAt = DateTimeOffset.Parse("2026-10-26T00:00:00Z"),
+            EndedAt = DateTimeOffset.Parse("2026-10-26T00:00:10Z"),
+            OutputInfo = new MediaInfo { BitRate = 800000, Streams = [new() { Type = "video", Width = 640, Height = 360 }] },
+            Options = new EncodingOptions { Video = new VideoOptions { Encoder = "libx264", Preset = "fast" }, ClipStart = 1, ClipDuration = 4 },
+            Analysis = new QualityResult(88, 0.9, 41, "", [], "")
+        };
+        var waiting = new EncodingJob { Status = JobStatus.Wartend, Source = source };
+        Assert.Equal(source.Path, Assert.Single(EncodingResults.Sources([done, waiting])));
+        var row = Assert.Single(EncodingResults.Rows([done, waiting], source.Path));
+        Assert.Equal("libx264", row.Encoder);
+        Assert.Equal("2.00", row.MiB);
+        Assert.Equal("10.0", row.Seconds);
+        Assert.Equal("800", row.Bitrate);
+        Assert.Contains("88", row.Vmaf);
+        Assert.DoesNotContain(TrackAction.Einbrennen, AudioTrackEditing.Actions);
+        Assert.Contains("libopus", AudioTrackEditing.Encoders);
+    }
 }

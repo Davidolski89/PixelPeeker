@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=PixelPeeker
+Comment=Video encoding editor
+Exec=PixelPeeker.Avalonia
+Icon=pixelpeeker
+Categories=AudioVideo;Video;
+Terminal=false
+StartupWMClass=PixelPeeker.Avalonia

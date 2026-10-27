@@ -47,6 +47,13 @@ public sealed class MainWindowTests
             Assert.NotNull(window.FindControl<Button>("TestEncodeButton"));
             Assert.NotNull(window.FindControl<Button>("ExportSubtitleButton"));
             Assert.NotNull(window.FindControl<Button>("PreviousFrameButton"));
+            Assert.NotNull(window.FindControl<Button>("ResultsButton"));
+            Assert.NotNull(window.FindControl<Button>("PlayButton"));
+            Assert.NotNull(window.FindControl<TextBlock>("HardwareTextBlock"));
+            Assert.NotNull(window.FindControl<TextBlock>("FileNamePreviewText"));
+            Assert.NotNull(window.FindControl<ContentControl>("AudioHost"));
+            Assert.False(string.IsNullOrWhiteSpace(ToolTip.GetTip(window.FindControl<Button>("CompareButton")!) as string));
+            Assert.False(string.IsNullOrWhiteSpace(ToolTip.GetTip(window.FindControl<Button>("OpenFileButton")!) as string));
             var file = Path.Combine(root, "clip.mkv");
             await File.WriteAllBytesAsync(file, [9, 8, 7, 6]);
             await vm.ImportPathsAsync([file]);
