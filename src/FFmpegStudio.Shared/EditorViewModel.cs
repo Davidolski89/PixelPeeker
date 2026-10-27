@@ -72,6 +72,7 @@ public sealed partial class EditorViewModel : ObservableObject
         this.comparison = comparison;
         this.watcher = watcher;
         this.hardware = hardware;
+        log.Written += line => ui.Invoke(() => AppendLog(line));
         watcher.OnReady = async (path, rule, ct) =>
         {
             var active = versions.Active ?? throw new InvalidOperationException(L.T("FFmpeg fehlt für den Ordnerimport."));
@@ -556,6 +557,7 @@ public sealed partial class EditorViewModel : ObservableObject
             CanSetPreset = false;
             EncoderInfo = "";
             OnPropertyChanged(nameof(SelectedEncoder));
+            NotifyPresentation();
             return;
         }
         adjustingEncoder = true;
@@ -573,6 +575,7 @@ public sealed partial class EditorViewModel : ObservableObject
             OnPropertyChanged(nameof(VideoQuality));
         }
         finally { adjustingEncoder = false; }
+        NotifyPresentation();
     }
 
     private void RefreshSummary()
@@ -582,22 +585,27 @@ public sealed partial class EditorViewModel : ObservableObject
             CommandText = "";
             ValidationText = "";
             Conversion = "";
+            EstimateText = "";
+            NotifyPresentation();
             return;
         }
         var executable = versions.Active?.FFmpegPath ?? (OperatingSystem.IsWindows() ? "ffmpeg.exe" : "ffmpeg");
         var current = EncodeCommandPreview.ForMedia(info, options, settings.Current, Capabilities, builder, executable);
         Conversion = current.Conversion;
         ValidationText = current.Validation;
+        EstimateText = current.Estimate;
         CommandText = current.Command.Length == 0 ? current.Validation : current.Command;
         OnPropertyChanged(nameof(CutSummary));
         OnPropertyChanged(nameof(OutputFileNamePreview));
         OnPropertyChanged(nameof(AudioTracks));
+        NotifyPresentation();
     }
 
     private void RefreshCuts()
     {
         OnPropertyChanged(nameof(CutEntries));
         OnPropertyChanged(nameof(CutSummary));
+        OnPropertyChanged(nameof(CutPositionStatus));
     }
 
     private void SetFilter(Action<FilterOptions> change)
@@ -640,12 +648,17 @@ public sealed partial class EditorViewModel : ObservableObject
     {
         if (SelectedMedia?.Info is not { } info || versions.Active is not { } tools)
             throw new InvalidOperationException(L.T("Datei und FFmpeg werden für die Vorschau benötigt."));
-        var frame = await frames.ResolveAsync(tools, info, seconds, direction, ct);
-        var width = Math.Min(1280, info.Video?.Width ?? 1280);
-        PreviewPath = await preview.FrameAsync(tools, info, frame.Seconds, width: width, exactFrame: frame, ct: ct);
-        DisplayedFrame = frame;
-        PreviewSeconds = frame.Seconds;
-        StatusText = L.F($"Geladenes Quellbild: {frame.Seconds:0.000000} s");
+        PreviewLoading = true;
+        try
+        {
+            var frame = await frames.ResolveAsync(tools, info, seconds, direction, ct);
+            var width = Math.Min(1280, info.Video?.Width ?? 1280);
+            PreviewPath = await preview.FrameAsync(tools, info, frame.Seconds, width: width, exactFrame: frame, ct: ct);
+            DisplayedFrame = frame;
+            PreviewSeconds = frame.Seconds;
+            StatusText = L.F($"Geladenes Quellbild: {frame.Seconds:0.000000} s");
+        }
+        finally { PreviewLoading = false; }
     }
 
     [RelayCommand] private async Task MarkCutStartAsync()
@@ -848,19 +861,34 @@ public sealed partial class EditorViewModel : ObservableObject
         RefreshSummary();
     }
 
-    private void UpdateQueueSummary() => QueueSummary = QueueSummaryText.Format(Jobs);
+    private void UpdateQueueSummary()
+    {
+        QueueSummary = QueueSummaryText.Format(Jobs);
+        OnPropertyChanged(nameof(QueueProgress));
+    }
 
     private async Task RunAsync(string description, Func<CancellationToken, Task> action)
     {
         if (IsBusy) return;
         IsBusy = true;
         StatusText = description;
-        try { await action(CancellationToken.None); }
+        operation?.Dispose();
+        operation = new CancellationTokenSource();
+        try { await action(operation.Token); }
+        catch (OperationCanceledException)
+        {
+            StatusText = L.T("Abgebrochen");
+        }
         catch (Exception e)
         {
             StatusText = e.Message;
             log.Write(description, e);
         }
-        finally { IsBusy = false; }
+        finally
+        {
+            IsBusy = false;
+            operation?.Dispose();
+            operation = null;
+        }
     }
 }
