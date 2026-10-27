@@ -1,5 +1,9 @@
 # Änderungen
 
+## 0.10.45 – 27. Oktober 2026
+
+- Die Avalonia-Oberfläche folgt dem Aufbau der WPF-Anwendung: Kopfzeile, Werkzeugleiste, Bibliothek mit Presets, Vorschau mit Schnitt und Filtern, eigener Encoder-Tab (Video, Audio, Untertitel, Ausgabe), Mediendaten, Befehl, Protokoll und die Queue mit Tabelle darunter. Farben, Abstände, Ecken und Zustände kommen aus `Themes/StudioTheme.axaml` und denselben Themen des `ThemeCatalog`. Die Schrift ist Segoe UI, wenn sie installiert ist, sonst Inter. Die Queue, die Qualitätsanalyse und die Ergebnisliste nutzen `Avalonia.Controls.DataGrid` 12.1.2. Die Windows-Oberfläche bleibt unverändert.
+
 ## 0.10.44 – 27. Oktober 2026
 
 - `scripts/setup-linux.sh` richtet PixelPeeker auf einem frischen Linux-Rechner ein. Es klont `main` nach `~/PixelPeeker` oder aktualisiert ein vorhandenes Checkout mit `git pull --ff-only`, installiert fehlende Pakete nach einer Rückfrage (`--yes`, `--no-install`) und veröffentlicht eine selbstständige Avalonia-Build unter `artifacts/portable-linux-x64` bzw. `artifacts/portable-linux-arm64`. Fedora 44 ist das Ziel; apt, pacman und zypper werden ebenfalls bedient. Das .NET SDK kommt aus `dotnet-sdk-10.0` oder, wenn das Paket fehlt, über Microsofts `dotnet-install.sh` nach `~/.dotnet`. `ffmpeg-free` bleibt optional. Liegt `vlc-libs` in den aktivierten Fedora-Repos, wird es installiert; RPM Fusion wird nicht automatisch aktiviert und nur mit `--enable-rpmfusion` eingeschaltet. `--test`, `--run` und `--desktop-entry` sind optional. Der Einzeiler ist `curl -fsSL https://raw.githubusercontent.com/Davidolski89/PixelPeeker/main/scripts/setup-linux.sh | bash`.

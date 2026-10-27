@@ -15,6 +15,7 @@
     <Content Include="../../licenses/**" Link="licenses/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="../../THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" />
     <AvaloniaResource Include="../FFmpegStudio.Desktop/Assets/PixelPeeker.png" Link="Assets/PixelPeeker.png" />
+    <PackageReference Include="Avalonia.Controls.DataGrid" Version="12.1.2" />
     <ProjectReference Include="../FFmpegStudio.Shared/FFmpegStudio.Shared.csproj" />
     <PackageReference Include="Avalonia" Version="12.1.4" />
     <PackageReference Include="LibVLCSharp" Version="3.10.2" />

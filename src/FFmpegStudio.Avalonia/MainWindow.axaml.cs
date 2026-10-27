@@ -1,9 +1,8 @@
 using Avalonia.Controls;
-using Avalonia.Controls.Templates;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
-using Avalonia.Threading;
 using FFmpegStudio.Core;
 using FFmpegStudio.Shared;
 
@@ -35,121 +34,87 @@ public partial class MainWindow : Window
             : Task.FromResult(true);
         vm.ResultsRequested = jobs => StudioDialogs.ShowResultsAsync(this, jobs);
         vm.CloseRequested = Close;
-        vm.ThemeChanged += _ => (global::Avalonia.Application.Current as App)?.ApplyTheme(vm.Settings);
+        vm.ManageFfmpegRequested = () => StudioDialogs.ManageFfmpegAsync(this, vm);
+        vm.EditTextRequested = (title, initial) => StudioDialogs.EditTextAsync(this, title, initial);
+        vm.TextWindowRequested = (title, text) => StudioDialogs.ShowTextAsync(this, title, text);
+        vm.RevealPath = path =>
+        {
+            EditorViewModel.Reveal(path);
+            if (!Directory.Exists(path) && !File.Exists(path))
+                vm.StatusText = L.T("Der Ordner ist noch nicht vorhanden.");
+        };
+        vm.ThemeChanged += _ =>
+        {
+            (global::Avalonia.Application.Current as App)?.ApplyTheme(vm.Settings);
+            UiText.Current.Refresh();
+        };
         vm.PropertyChanged += (_, change) =>
         {
             if (change.PropertyName == nameof(EditorViewModel.PreviewPath))
-                Dispatcher.UIThread.Post(ShowPreview);
-            if (change.PropertyName == nameof(EditorViewModel.AudioTracks))
-                Dispatcher.UIThread.Post(RebuildAudio);
+                global::Avalonia.Threading.Dispatcher.UIThread.Post(ShowPreview);
             if (change.PropertyName is nameof(EditorViewModel.PhaseNote) or nameof(EditorViewModel.Settings))
-                Dispatcher.UIThread.Post(ApplyHints);
+                global::Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    UiText.Current.Refresh();
+                    ApplyHints();
+                    UpdateWorkspaceSummary();
+                });
         };
-        Opened += (_, _) => { RebuildAudio(); ApplyHints(); };
-        RebuildAudio();
+        Opened += (_, _) =>
+        {
+            ApplyHints();
+            UpdateWorkspaceSummary();
+        };
         ApplyHints();
     }
 
-    private AudioTrackOptions[]? shownAudio;
-    private bool bindingAudio;
+    private void MainTabsChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (e.Source is TabControl) UpdateWorkspaceSummary();
+    }
 
-    private void RebuildAudio()
+    private void UpdateWorkspaceSummary()
+    {
+        if (MainPreviewTabs is null || ConversionSummaryCard is null || ValidationSummaryCard is null) return;
+        ConversionSummaryCard.IsVisible = ReferenceEquals(MainPreviewTabs.SelectedItem, EncodeSettingsTab) && Bounds.Height >= 850;
+        ValidationSummaryCard.IsVisible = ReferenceEquals(MainPreviewTabs.SelectedItem, PreviewTab) || ReferenceEquals(MainPreviewTabs.SelectedItem, EncodeSettingsTab);
+        if (PresetSelector is not null) PresetSelector.Width = Bounds.Width < 1300 ? 180 : 280;
+    }
+
+    private async void AddSelectedClick(object? sender, RoutedEventArgs e)
     {
         if (DataContext is not EditorViewModel vm) return;
-        var tracks = vm.AudioTracks.ToArray();
-        if (shownAudio is not null && shownAudio.SequenceEqual(tracks)) return;
-        shownAudio = tracks;
-        if (tracks.Length == 0)
-        {
-            AudioHost.Content = new TextBlock { Text = L.T("Eine Videodatei auswählen."), TextWrapping = global::Avalonia.Media.TextWrapping.Wrap };
-            ApplyHints();
-            return;
-        }
-        var picker = new ComboBox { ItemsSource = tracks, SelectedItem = vm.SelectedAudio ?? tracks[0] };
-        picker.ItemTemplate = new FuncDataTemplate<AudioTrackOptions>((track, _) => new TextBlock { Text = track?.SourceSummary ?? "" });
-        var action = new ComboBox { ItemsSource = AudioTrackEditing.Actions };
-        action.ItemTemplate = new FuncDataTemplate<TrackAction>((value, _) => new TextBlock { Text = L.EnumText(value) });
-        var encoder = new ComboBox { ItemsSource = AudioTrackEditing.Encoders };
-        var bitrate = new NumericUpDown { Minimum = 0, Maximum = 1536, Increment = 32, FormatString = "0", Width = 120 };
-        void Show(AudioTrackOptions? track)
-        {
-            bindingAudio = true;
-            try
-            {
-                vm.SelectedAudio = track;
-                var enabled = track is not null;
-                action.IsEnabled = enabled;
-                encoder.IsVisible = track?.CanEncode == true;
-                bitrate.IsVisible = track?.CanSetBitrate == true;
-                if (track is null) return;
-                action.SelectedItem = AudioTrackEditing.Actions.Contains(track.Action) ? track.Action : TrackAction.Kopieren;
-                encoder.SelectedItem = AudioTrackEditing.Encoders.Contains(track.Encoder) ? track.Encoder : AudioTrackEditing.Encoders[0];
-                bitrate.Value = track.BitRateKbps;
-            }
-            finally { bindingAudio = false; }
-        }
-        picker.SelectionChanged += (_, _) => Show(picker.SelectedItem as AudioTrackOptions);
-        action.SelectionChanged += (_, _) =>
-        {
-            if (bindingAudio || vm.SelectedAudio is not { } track || action.SelectedItem is not TrackAction value) return;
-            track.Action = value;
-            Show(track);
-        };
-        encoder.SelectionChanged += (_, _) =>
-        {
-            if (bindingAudio || vm.SelectedAudio is not { } track || encoder.SelectedItem is not string value) return;
-            track.Encoder = value;
-            Show(track);
-        };
-        bitrate.ValueChanged += (_, _) =>
-        {
-            if (bindingAudio || vm.SelectedAudio is not { } track) return;
-            track.BitRateKbps = (int)(bitrate.Value ?? track.BitRateKbps);
-        };
-        AudioHost.Content = new StackPanel
-        {
-            Spacing = 6,
-            Children = { picker, action, encoder, bitrate }
-        };
-        Show(picker.SelectedItem as AudioTrackOptions);
-        ApplyHints();
+        await vm.AddManyAsync(MediaList.SelectedItems?.OfType<EditorMedia>().ToArray() ?? []);
+    }
+
+    private void ApplySelectedClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not EditorViewModel vm) return;
+        vm.ApplyToMany(MediaList.SelectedItems?.OfType<EditorMedia>().ToArray() ?? []);
+    }
+
+    private void StartSelectedClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not EditorViewModel vm) return;
+        vm.StartSelected(QueueGrid.SelectedItems?.OfType<EncodingJob>().ToArray() ?? []);
+    }
+
+    private void ExportTrackClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not EditorViewModel vm || sender is not Button { DataContext: SubtitleTrackOptions track }) return;
+        vm.ExportSubtitleCommand.Execute(track);
+    }
+
+    private async void CopyCommandClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not EditorViewModel vm || string.IsNullOrWhiteSpace(vm.CommandText)) return;
+        if (TopLevel.GetTopLevel(this)?.Clipboard is { } clipboard)
+            await clipboard.SetTextAsync(vm.CommandText);
     }
 
     private void ApplyHints()
     {
         if (DataContext is EditorViewModel vm) AvaloniaHints.Apply(this, vm.Settings);
-    }
-
-    private async void OpenFileClick(object? sender, RoutedEventArgs e)
-    {
-        if (DataContext is not EditorViewModel vm) return;
-        try
-        {
-            var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-            {
-                Title = L.T("Videos importieren"),
-                AllowMultiple = true,
-                FileTypeFilter =
-                [
-                    new FilePickerFileType(L.T("Videos importieren"))
-                    {
-                        Patterns = ["*.mp4", "*.mkv", "*.mov", "*.webm", "*.avi", "*.m2ts", "*.mts", "*.ts", "*.m4v", "*.wmv", "*.mpg", "*.mpeg"]
-                    },
-                    FilePickerFileTypes.All
-                ]
-            });
-            var paths = files.Select(file => file.TryGetLocalPath()).OfType<string>().ToList();
-            if (files.Count > 0 && paths.Count == 0)
-            {
-                vm.StatusText = L.T("Die ausgewählte Datei hat keinen lokalen Pfad.");
-                return;
-            }
-            if (paths.Count > 0) await vm.ImportPathsAsync(paths);
-        }
-        catch (Exception ex)
-        {
-            vm.StatusText = ex.Message;
-        }
     }
 
     private async void WindowDrop(object? sender, DragEventArgs e)

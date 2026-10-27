@@ -4,8 +4,20 @@
              RequestedThemeVariant="Dark">
     <Application.Styles>
         <FluentTheme />
+        <StyleInclude Source="avares://PixelPeeker.Avalonia/Themes/StudioTheme.axaml"/>
     </Application.Styles>
     <Application.Resources>
+        <SolidColorBrush x:Key="Bg" Color="#10151F"/>
+        <SolidColorBrush x:Key="Surface" Color="#171E2B"/>
+        <SolidColorBrush x:Key="Raised" Color="#202A3A"/>
+        <SolidColorBrush x:Key="Border" Color="#344155"/>
+        <SolidColorBrush x:Key="Text" Color="#F0F4FA"/>
+        <SolidColorBrush x:Key="Muted" Color="#A5B4C9"/>
+        <SolidColorBrush x:Key="Accent" Color="#70DBC1"/>
+        <SolidColorBrush x:Key="AccentText" Color="#0E2420"/>
+        <SolidColorBrush x:Key="Warning" Color="#FFCB7B"/>
+        <SolidColorBrush x:Key="Selection" Color="#2C4353"/>
+        <SolidColorBrush x:Key="SelectionText" Color="#F0F4FA"/>
         <SolidColorBrush x:Key="StudioBg" Color="#10151F"/>
         <SolidColorBrush x:Key="StudioSurface" Color="#171E2B"/>
         <SolidColorBrush x:Key="StudioRaised" Color="#202A3A"/>

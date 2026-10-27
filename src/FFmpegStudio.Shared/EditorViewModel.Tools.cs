@@ -93,9 +93,10 @@ public sealed partial class EditorViewModel
     });
 
     [RelayCommand]
-    private Task ExportSubtitleAsync() => RunAsync(L.T("Untertitel exportieren …"), async ct =>
+    private Task ExportSubtitleAsync(SubtitleTrackOptions? track) => RunAsync(L.T("Untertitel exportieren …"), async ct =>
     {
-        if (SelectedSubtitle is not { } track || SelectedMedia?.Info is not { } info || versions.Active is not { } tools) return;
+        track ??= SelectedSubtitle;
+        if (track is null || SelectedMedia?.Info is not { } info || versions.Active is not { } tools) return;
         var path = await prompts.PickSaveFileAsync(L.T("Untertitel exportieren"), SubtitleExport.SuggestedName(info, track));
         if (path is null) return;
         await subtitles.ExportAsync(tools, info, track, path, ct);

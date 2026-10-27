@@ -94,6 +94,17 @@ public partial class App : Application
         {
             if (Resources[key] is SolidColorBrush brush) brush.Color = Color.Parse(hex);
         }
+        Set("Bg", theme.Bg);
+        Set("Surface", theme.Surface);
+        Set("Raised", theme.Raised);
+        Set("Border", theme.Border);
+        Set("Text", theme.Text);
+        Set("Muted", theme.Muted);
+        Set("Accent", theme.Accent);
+        Set("AccentText", theme.AccentText);
+        Set("Warning", theme.Warning);
+        Set("Selection", theme.Selection);
+        Set("SelectionText", theme.SelectionText);
         Set("StudioBg", theme.Bg);
         Set("StudioSurface", theme.Surface);
         Set("StudioRaised", theme.Raised);
