@@ -64,6 +64,7 @@ public sealed class ViewCaptureTests
                 OutputPath = Path.Combine(root, "PixelPeeker", "clip_1080p_hevc.mkv")
             });
             vm.SelectedJob = vm.Jobs[0];
+            vm.QueueSummary = QueueSummaryText.Format(vm.Jobs);
             var window = new MainWindow { DataContext = vm, Width = 1540, Height = 1020 };
             window.Show();
             Save(window, output, "01-preview");
