@@ -83,6 +83,51 @@
         <Setter Property="MinHeight" Value="32"/>
         <Setter Property="Margin" Value="0,0,0,5"/>
         <Setter Property="CornerRadius" Value="3"/>
+        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        <Setter Property="MaxDropDownHeight" Value="360"/>
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Grid>
+                    <Border Background="{DynamicResource Raised}" BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="3"/>
+                    <Grid ColumnDefinitions="*,28">
+                        <ContentControl x:Name="ContentPresenter"
+                                        Content="{TemplateBinding SelectionBoxItem}"
+                                        ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                        Margin="8,5,4,5"
+                                        VerticalContentAlignment="Center"
+                                        HorizontalContentAlignment="Stretch"
+                                        IsHitTestVisible="False"
+                                        IsVisible="{TemplateBinding IsEditable, Converter={x:Static BoolConverters.Not}}"/>
+                        <TextBox Name="PART_EditableTextBox"
+                                 Grid.Column="0"
+                                 Margin="2,1,0,0"
+                                 Padding="6,4"
+                                 Background="Transparent"
+                                 BorderThickness="0"
+                                 Foreground="{TemplateBinding Foreground}"
+                                 Text="{TemplateBinding Text, Mode=TwoWay}"
+                                 IsVisible="{TemplateBinding IsEditable}"/>
+                        <TextBlock Grid.Column="1" Text="⌄" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False"/>
+                    </Grid>
+                    <Popup Name="PART_Popup"
+                           IsOpen="{TemplateBinding IsDropDownOpen, Mode=TwoWay}"
+                           PlacementTarget="{Binding $parent[ComboBox]}"
+                           Placement="Bottom"
+                           IsLightDismissEnabled="True"
+                           WindowManagerAddShadowHint="False">
+                        <Border Background="{DynamicResource Raised}"
+                                BorderBrush="{DynamicResource Border}"
+                                BorderThickness="1"
+                                MinWidth="{Binding Bounds.Width, RelativeSource={RelativeSource TemplatedParent}}"
+                                MaxHeight="{TemplateBinding MaxDropDownHeight}">
+                            <ScrollViewer>
+                                <ItemsPresenter Name="PART_ItemsPresenter"/>
+                            </ScrollViewer>
+                        </Border>
+                    </Popup>
+                </Grid>
+            </ControlTemplate>
+        </Setter>
     </Style>
     <Style Selector="Window.studio ComboBox:disabled">
         <Setter Property="Opacity" Value="0.4"/>
@@ -154,6 +199,9 @@
         <Setter Property="GridLinesVisibility" Value="None"/>
         <Setter Property="HeadersVisibility" Value="Column"/>
         <Setter Property="RowHeight" Value="42"/>
+        <Setter Property="CanUserResizeColumns" Value="True"/>
+        <Setter Property="CanUserReorderColumns" Value="True"/>
+        <Setter Property="CanUserSortColumns" Value="True"/>
     </Style>
     <Style Selector="Window.studio DataGridColumnHeader">
         <Setter Property="Background" Value="{DynamicResource Raised}"/>
@@ -178,8 +226,53 @@
     </Style>
     <Style Selector="Window.studio Slider">
         <Setter Property="Foreground" Value="{DynamicResource Accent}"/>
+        <Setter Property="Background" Value="{DynamicResource Border}"/>
         <Setter Property="Height" Value="28"/>
+        <Setter Property="MinHeight" Value="28"/>
         <Setter Property="Margin" Value="0,2,0,0"/>
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Grid Background="Transparent" Height="28">
+                    <Border Height="4" Margin="7,0" Background="{DynamicResource Border}" CornerRadius="2" VerticalAlignment="Center"/>
+                    <Track Name="PART_Track"
+                           Margin="7,0"
+                           Minimum="{TemplateBinding Minimum}"
+                           Maximum="{TemplateBinding Maximum}"
+                           Value="{TemplateBinding Value, Mode=TwoWay}"
+                           Orientation="{TemplateBinding Orientation}"
+                           IsDirectionReversed="{TemplateBinding IsDirectionReversed}">
+                        <Track.DecreaseButton>
+                            <RepeatButton Focusable="False" Background="Transparent">
+                                <RepeatButton.Template>
+                                    <ControlTemplate>
+                                        <Border Height="4" Background="{DynamicResource Accent}" CornerRadius="2" VerticalAlignment="Center"/>
+                                    </ControlTemplate>
+                                </RepeatButton.Template>
+                            </RepeatButton>
+                        </Track.DecreaseButton>
+                        <Track.IncreaseButton>
+                            <RepeatButton Focusable="False" Background="Transparent">
+                                <RepeatButton.Template>
+                                    <ControlTemplate>
+                                        <Border Background="Transparent"/>
+                                    </ControlTemplate>
+                                </RepeatButton.Template>
+                            </RepeatButton>
+                        </Track.IncreaseButton>
+                        <Thumb Width="16" Height="16" Background="Transparent" BorderThickness="0">
+                            <Thumb.Template>
+                                <ControlTemplate>
+                                    <Ellipse Fill="{DynamicResource Accent}" Stroke="{DynamicResource Bg}" StrokeThickness="2"/>
+                                </ControlTemplate>
+                            </Thumb.Template>
+                        </Thumb>
+                    </Track>
+                </Grid>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="Window.studio Slider:focus-within /template/ Thumb">
+        <Setter Property="Opacity" Value="0.7"/>
     </Style>
     <Style Selector="ToolTip">
         <Setter Property="FontFamily" Value="Segoe UI, Inter, sans-serif"/>

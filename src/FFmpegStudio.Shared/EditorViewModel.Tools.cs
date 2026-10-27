@@ -104,11 +104,14 @@ public sealed partial class EditorViewModel
     });
 
     [RelayCommand]
-    private async Task CompareEncodesAsync()
+    private async Task CompareEncodesAsync() => await OpenComparisonAsync(null);
+
+    public async Task OpenComparisonAsync(IReadOnlyList<EncodingJob>? selected)
     {
         if (ComparisonRequested is null) return;
         var session = new EncodeComparisonSession(comparison, log);
         session.RefreshJobs(Jobs);
+        if (selected is { Count: > 0 }) session.SelectJobs(selected);
         await ComparisonRequested(session);
     }
 

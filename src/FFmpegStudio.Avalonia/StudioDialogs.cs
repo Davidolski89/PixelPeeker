@@ -157,209 +157,10 @@ public static class StudioDialogs
         return suppress.IsChecked == true;
     }
 
-    public static async Task ShowComparisonAsync(Window owner, EncodeComparisonSession session, Func<Task<EncodeComparisonInput?>> openFile)
-    {
-        var dialog = Window(L.T("Encode-Vergleich"), 1100, 780, owner);
-        var imageA = new Image { Stretch = Stretch.Uniform };
-        var imageB = new Image { Stretch = Stretch.Uniform };
-        var original = new Image { Stretch = Stretch.Uniform };
-        var focusImage = new Image { Stretch = Stretch.Uniform };
-        var focusCaption = new TextBlock { FontWeight = FontWeight.SemiBold, Margin = new global::Avalonia.Thickness(6) };
-        var samples = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-        var stripA = new ComparisonAvailabilityView();
-        var stripB = new ComparisonAvailabilityView();
-        void ShowFrames()
-        {
-            imageA.Source = PreviewBitmaps.Load(session.PathA);
-            imageB.Source = PreviewBitmaps.Load(session.PathB);
-            original.Source = PreviewBitmaps.Load(session.OriginalPath);
-            focusImage.Source = PreviewBitmaps.Load(session.FocusPath);
-            var scale = new ScaleTransform(session.Zoom, session.Zoom);
-            imageA.RenderTransform = scale;
-            imageB.RenderTransform = new ScaleTransform(session.Zoom, session.Zoom);
-            original.RenderTransform = new ScaleTransform(session.Zoom, session.Zoom);
-            focusImage.RenderTransform = new ScaleTransform(session.Zoom, session.Zoom);
-            focusCaption.Text = L.T("Fokus") + " · " + session.Focus switch
-            {
-                ComparisonFocus.Original => L.T("Original"),
-                ComparisonFocus.B => "B",
-                _ => "A"
-            };
-            var duration = session.SelectedA?.Input.Job?.Source.Duration ?? session.SelectedA?.Input.Media.Duration ?? 1;
-            if (duration <= 0 || !double.IsFinite(duration)) duration = 1;
-            stripA.Duration = duration;
-            stripB.Duration = duration;
-            stripA.Position = session.Position;
-            stripB.Position = session.Position;
-            stripA.Intervals = session.CoverageA;
-            stripB.Intervals = session.CoverageB;
-            stripB.IsVisible = session.CompareTwo;
-            stripA.InvalidateVisual();
-            stripB.InvalidateVisual();
-        }
-        void RebuildSamples()
-        {
-            samples.Children.Clear();
-            foreach (var shot in session.Samples)
-            {
-                var thumb = new Image { Source = PreviewBitmaps.Load(shot.PathA ?? shot.OriginalPath), Width = 112, Height = 63, Stretch = Stretch.Uniform };
-                var button = new Button
-                {
-                    Content = new StackPanel { Spacing = 2, Children = { thumb, new TextBlock { Text = shot.Label, HorizontalAlignment = HorizontalAlignment.Center } } },
-                    Padding = new global::Avalonia.Thickness(2)
-                };
-                var current = shot;
-                button.Click += (_, _) => { session.SelectSample(current); ShowFrames(); };
-                samples.Children.Add(button);
-            }
-        }
-        session.PropertyChanged += (_, change) =>
-        {
-            if (change.PropertyName is nameof(EncodeComparisonSession.PathA) or nameof(EncodeComparisonSession.PathB)
-                or nameof(EncodeComparisonSession.OriginalPath) or nameof(EncodeComparisonSession.Zoom)
-                or nameof(EncodeComparisonSession.FocusPath) or nameof(EncodeComparisonSession.Position)
-                or nameof(EncodeComparisonSession.SelectedA) or nameof(EncodeComparisonSession.SelectedB)
-                or nameof(EncodeComparisonSession.OffsetA) or nameof(EncodeComparisonSession.OffsetB)
-                or nameof(EncodeComparisonSession.CompareTwo))
-                Dispatcher.UIThread.Post(ShowFrames);
-        };
-        session.Samples.CollectionChanged += (_, _) => Dispatcher.UIThread.Post(RebuildSamples);
-        var choiceA = new ComboBox { ItemsSource = session.Choices, SelectedItem = session.SelectedA };
-        var choiceB = new ComboBox { ItemsSource = session.Choices, SelectedItem = session.SelectedB };
-        choiceA.SelectionChanged += (_, _) => session.SelectedA = choiceA.SelectedItem as EncodeComparisonChoice;
-        choiceB.SelectionChanged += (_, _) => session.SelectedB = choiceB.SelectedItem as EncodeComparisonChoice;
-        var two = new CheckBox { Content = L.T("Encode A + Encode B"), IsChecked = session.CompareTwo };
-        var withOriginal = new CheckBox { Content = L.T("Original"), IsChecked = session.IncludeOriginal };
-        var matched = new CheckBox { Content = L.T("Referenz mit Filtern von Encode A"), IsChecked = session.MatchReference };
-        two.IsCheckedChanged += (_, _) => session.CompareTwo = two.IsChecked == true;
-        withOriginal.IsCheckedChanged += (_, _) => session.IncludeOriginal = withOriginal.IsChecked == true;
-        matched.IsCheckedChanged += (_, _) => session.MatchReference = matched.IsChecked == true;
-        var position = new NumericUpDown { Value = (decimal)session.Position, Minimum = 0, Increment = 0.04m, FormatString = "0.000", Width = 120 };
-        position.ValueChanged += (_, _) => session.Position = (double)(position.Value ?? 0);
-        var offsetA = new NumericUpDown { Value = (decimal)session.OffsetA, Increment = 0.04m, FormatString = "0.000", Width = 110 };
-        var offsetB = new NumericUpDown { Value = (decimal)session.OffsetB, Increment = 0.04m, FormatString = "0.000", Width = 110 };
-        offsetA.ValueChanged += (_, _) => session.OffsetA = (double)(offsetA.Value ?? 0);
-        offsetB.ValueChanged += (_, _) => session.OffsetB = (double)(offsetB.Value ?? 0);
-        var zoom = new ComboBox { ItemsSource = new double[] { 1, 2, 4 }, SelectedItem = session.Zoom, Width = 80 };
-        zoom.SelectionChanged += (_, _) => { if (zoom.SelectedItem is double value) session.Zoom = value; };
-        var open = new Button { Content = L.T("Datei öffnen") };
-        var load = new Button { Content = L.T("Vergleichen") };
-        var previous = new Button { Content = L.T("Vorheriges Bild") };
-        var next = new Button { Content = L.T("Nächstes Bild") };
-        var sampleButton = new Button { Content = L.T("Beispielbilder laden") };
-        var focusA = new Button { Content = "A" };
-        var focusB = new Button { Content = "B" };
-        var focusOriginal = new Button { Content = L.T("Original") };
-        var close = new Button { Content = L.T("Schließen") };
-        open.Click += async (_, _) =>
-        {
-            try
-            {
-                var input = await openFile();
-                if (input is null) return;
-                session.AddExternal(input);
-                choiceA.SelectedItem = session.SelectedA;
-                choiceB.SelectedItem = session.SelectedB;
-            }
-            catch (Exception e) { session.Status = e.Message; }
-        };
-        load.Click += async (_, _) => await session.LoadNearestAsync();
-        previous.Click += async (_, _) => await session.LoadPreviousAsync();
-        next.Click += async (_, _) => await session.LoadNextAsync();
-        sampleButton.Click += async (_, _) => await session.GenerateSamplesAsync();
-        focusA.Click += (_, _) => { session.Focus = ComparisonFocus.A; ShowFrames(); };
-        focusB.Click += (_, _) => { session.Focus = ComparisonFocus.B; ShowFrames(); };
-        focusOriginal.Click += (_, _) => { session.Focus = ComparisonFocus.Original; ShowFrames(); };
-        async Task Seek(double seconds)
-        {
-            session.Position = seconds;
-            position.Value = (decimal)seconds;
-            await session.LoadNearestAsync();
-        }
-        stripA.SeekRequested += seconds => _ = Seek(seconds);
-        stripB.SeekRequested += seconds => _ = Seek(seconds);
-        close.Click += (_, _) => dialog.Close();
-        var status = new TextBlock { TextWrapping = TextWrapping.Wrap };
-        status.Bind(TextBlock.TextProperty, new global::Avalonia.Data.Binding(nameof(EncodeComparisonSession.Status)) { Source = session });
-        var scrollers = new List<ScrollViewer>();
-        var syncing = false;
-        void Track(ScrollViewer source)
-        {
-            if (syncing) return;
-            syncing = true;
-            foreach (var other in scrollers)
-            {
-                if (ReferenceEquals(other, source)) continue;
-                other.Offset = source.Offset;
-            }
-            syncing = false;
-        }
-        var holdingReference = false;
-        dialog.KeyDown += (_, e) =>
-        {
-            if (e.Key != Key.Space || holdingReference || string.IsNullOrWhiteSpace(session.OriginalPath)) return;
-            holdingReference = true;
-            focusImage.Source = PreviewBitmaps.Load(session.OriginalPath);
-            focusCaption.Text = L.T("Referenz");
-            e.Handled = true;
-        };
-        dialog.KeyUp += (_, e) =>
-        {
-            if (e.Key != Key.Space || !holdingReference) return;
-            holdingReference = false;
-            ShowFrames();
-            e.Handled = true;
-        };
-        var images = new Grid { ColumnDefinitions = new ColumnDefinitions("*,*,*"), ColumnSpacing = 8, MinHeight = 180 };
-        images.Children.Add(Frame(L.T("Original"), original, scrollers, Track));
-        var paneA = Frame("A", imageA, scrollers, Track);
-        Grid.SetColumn(paneA, 1);
-        images.Children.Add(paneA);
-        var paneB = Frame("B", imageB, scrollers, Track);
-        Grid.SetColumn(paneB, 2);
-        images.Children.Add(paneB);
-        var focusPane = new Border
-        {
-            Background = new SolidColorBrush(Color.Parse("#080B10")),
-            MinHeight = 180,
-            Child = new DockPanel
-            {
-                Children = { Docked(Dock.Top, focusCaption), new Viewbox { Child = focusImage } }
-            }
-        };
-        dialog.Content = new DockPanel
-        {
-            Margin = new global::Avalonia.Thickness(12),
-            Children =
-            {
-                Docked(Dock.Top, new StackPanel
-                {
-                    Spacing = 8,
-                    Children =
-                    {
-                        choiceA, choiceB,
-                        new WrapPanel { Orientation = Orientation.Horizontal, Children = { two, withOriginal, matched, Label(L.T("Zeit (s)")), position, Label("A"), offsetA, Label("B"), offsetB, zoom } },
-                        new WrapPanel { Orientation = Orientation.Horizontal, Children = { open, load, previous, next, sampleButton, focusA, focusB, focusOriginal, close } },
-                        status,
-                        Label(L.T("Beispielbilder")),
-                        new ScrollViewer { HorizontalScrollBarVisibility = global::Avalonia.Controls.Primitives.ScrollBarVisibility.Auto, VerticalScrollBarVisibility = global::Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled, Content = samples },
-                        Label("A · " + L.T("Verfügbarkeit auf der Quellzeitachse. Vollfläche: vorhanden. Schraffiert: entfernt oder außerhalb des Ausschnitts. Gepunktet: Schnittzuordnung unbekannt. Klicken, um zu dieser Quellposition zu springen. Bei externen Dateien sind nur Dateigrenzen und Zeitversatz bekannt.")),
-                        stripA,
-                        stripB
-                    }
-                }),
-                new Grid
-                {
-                    ColumnDefinitions = new ColumnDefinitions("*,*"),
-                    ColumnSpacing = 8,
-                    Children = { images, focusPane }
-                }
-            }
-        };
-        Grid.SetColumn(focusPane, 1);
-        ShowFrames();
-        await dialog.ShowDialog(owner);
-    }
+    internal static Window CreateWindow(string title, double width, double height, Window owner) => Window(title, width, height, owner);
+
+    public static Task ShowComparisonAsync(Window owner, EncodeComparisonSession session, Func<Task<EncodeComparisonInput?>> openFile)
+        => ComparisonDialog.ShowAsync(owner, session, openFile);
 
     public static async Task ShowAnalysisAsync(Window owner, QualityResult result)
     {
@@ -794,6 +595,8 @@ public static class StudioDialogs
         progress.Bind(ProgressBar.ValueProperty, new Binding(nameof(EditorViewModel.DownloadPercent)) { Source = vm });
         var close = new Button { Content = L.T("Schließen") };
         close.Click += (_, _) => dialog.Close();
+        var available = new TextBlock { FontSize = 17 };
+        available.Bind(TextBlock.TextProperty, new Binding(nameof(EditorViewModel.AvailableVersion)) { Source = vm });
         dialog.Content = new ScrollViewer
         {
             Content = new StackPanel
@@ -802,23 +605,29 @@ public static class StudioDialogs
                 Spacing = 8,
                 Children =
                 {
-                    new TextBlock { Text = L.T("FFmpeg"), FontSize = 23, FontWeight = FontWeight.SemiBold },
+                    new TextBlock { Text = L.T("FFmpeg Git-Master · Full Build"), FontSize = 23, FontWeight = FontWeight.SemiBold },
+                    Label(L.T("Quelle: geprüfter Download · SHA-256 · getrennte Versionen · Rollback")),
                     new TextBlock { Text = vm.DistributionNote, TextWrapping = TextWrapping.Wrap },
                     Label(L.T("Installiert")),
                     version,
+                    Label(L.T("Verfügbar")),
+                    available,
                     new WrapPanel
                     {
+                        Margin = new Thickness(0, 18, 0, 12),
                         Children =
                         {
-                            new Button { Content = vm.CheckFfmpegLabel, Command = vm.CheckFfmpegCommand },
-                            new Button { Content = vm.InstallFfmpegLabel, Command = vm.InstallFfmpegCommand, Classes = { "primary" } },
-                            new Button { Content = vm.SystemFfmpegLabel, Command = vm.UseSystemFfmpegCommand },
+                            new Button { Content = L.T("Updates prüfen"), Command = vm.CheckFfmpegCommand },
+                            new Button { Content = L.T("Herunterladen & installieren"), Command = vm.InstallFfmpegCommand, Classes = { "primary" } },
+                            new Button { Content = L.T("Lokale Programme …"), Command = vm.SelectLocalFfmpegCommand },
+                            new Button { Content = L.T("Vorherige Version aktivieren"), Command = vm.RollbackFfmpegCommand },
+                            new Button { Content = L.T("Abbrechen"), Command = vm.CancelOperationCommand },
                             close
                         }
                     },
                     progress,
                     status,
-                    new TextBlock { Text = L.T("Laufende Jobs verwenden ihren gespeicherten Programmpfad. Eine neue Version wird erst nach erfolgreichem Download, Hashprüfung und Programmstart aktiviert."), FontSize = 12, TextWrapping = TextWrapping.Wrap }
+                    new TextBlock { Text = L.T("Laufende Jobs verwenden ihren gespeicherten Programmpfad. Eine neue Version wird erst nach erfolgreichem Download, Hashprüfung und Programmstart aktiviert. Benutzerdefinierte Installationen werden nicht überschrieben."), FontSize = 12, TextWrapping = TextWrapping.Wrap }
                 }
             }
         };
@@ -828,13 +637,29 @@ public static class StudioDialogs
     public static async Task<string?> EditTextAsync(Window owner, string title, string initial)
     {
         var dialog = Window(title, 880, 760, owner);
-        var box = new TextBox { Text = initial, AcceptsReturn = true, TextWrapping = TextWrapping.NoWrap, MinHeight = 520, FontFamily = "Cascadia Mono, Consolas, DejaVu Sans Mono, monospace" };
+        var box = new TextBox { Text = initial, AcceptsReturn = true, AcceptsTab = true, TextWrapping = TextWrapping.NoWrap, MinHeight = 520, FontFamily = "Cascadia Mono, Consolas, DejaVu Sans Mono, monospace" };
+        var error = new TextBlock { Foreground = Brushes.OrangeRed, TextWrapping = TextWrapping.Wrap };
         string? result = null;
-        var ok = new Button { Content = L.T("OK"), Classes = { "primary" } };
+        var ok = new Button { Content = L.T("Übernehmen"), Classes = { "primary" } };
         var cancel = new Button { Content = L.T("Abbrechen") };
-        ok.Click += (_, _) => { result = box.Text; dialog.Close(); };
+        ok.Click += (_, _) =>
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(box.Text)) throw new System.Text.Json.JsonException(L.T("Leeres Objekt."));
+                System.Text.Json.JsonDocument.Parse(box.Text).Dispose();
+                result = box.Text;
+                dialog.Close();
+            }
+            catch (Exception e) { error.Text = L.T("Ungültiges JSON") + "\n" + e.Message; }
+        };
         cancel.Click += (_, _) => dialog.Close();
-        dialog.Content = new DockPanel { Margin = new Thickness(16), Children = { Footer(ok, cancel), box } };
+        var buttons = Footer(ok, cancel);
+        var body = new DockPanel();
+        DockPanel.SetDock(error, Dock.Bottom);
+        body.Children.Add(error);
+        body.Children.Add(box);
+        dialog.Content = new DockPanel { Margin = new Thickness(16), Children = { buttons, body } };
         await dialog.ShowDialog(owner);
         return result;
     }

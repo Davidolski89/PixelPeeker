@@ -1,8 +1,12 @@
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
+using Avalonia.Media;
 using Avalonia.Platform.Storage;
+using Avalonia.VisualTree;
 using FFmpegStudio.Core;
 using FFmpegStudio.Shared;
 
@@ -14,6 +18,12 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         DragDrop.AddDropHandler(this, WindowDrop);
+        DragDrop.SetAllowDrop(QueueGrid, true);
+        QueueGrid.AddHandler(InputElement.PointerPressedEvent, QueuePressed, RoutingStrategies.Tunnel);
+        DragDrop.AddDragOverHandler(QueueGrid, QueueDragOver);
+        DragDrop.AddDropHandler(QueueGrid, QueueDrop);
+        foreach (var slider in this.GetVisualDescendants().OfType<Slider>().Where(slider => slider.Classes.Contains("point")))
+            MoveSliderToPoint(slider);
         DataContextChanged += (_, _) => AttachViewModel();
     }
 
@@ -107,14 +117,94 @@ public partial class MainWindow : Window
 
     private async void CopyCommandClick(object? sender, RoutedEventArgs e)
     {
-        if (DataContext is not EditorViewModel vm || string.IsNullOrWhiteSpace(vm.CommandText)) return;
+        if (DataContext is not EditorViewModel vm || !vm.CanCopyCommand || string.IsNullOrWhiteSpace(vm.DisplayedCommandText)) return;
         if (TopLevel.GetTopLevel(this)?.Clipboard is { } clipboard)
-            await clipboard.SetTextAsync(vm.CommandText);
+            await clipboard.SetTextAsync(vm.DisplayedCommandText);
     }
 
     private void ApplyHints()
     {
         if (DataContext is EditorViewModel vm) AvaloniaHints.Apply(this, vm.Settings);
+    }
+
+    private async void CompareSelectedClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not EditorViewModel vm) return;
+        var selected = QueueGrid.SelectedItems?.OfType<EncodingJob>()
+            .Where(job => job.Status == JobStatus.Abgeschlossen && job.OutputInfo?.Video is not null)
+            .Take(2)
+            .ToArray() ?? [];
+        await vm.OpenComparisonAsync(selected);
+    }
+
+    private void PreviewTimelineKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (DataContext is not EditorViewModel vm || e.KeyModifiers != KeyModifiers.None || e.Key is not (Key.Left or Key.Right or Key.Space)) return;
+        e.Handled = true;
+        var command = e.Key == Key.Space
+            ? vm.PlaybackActive ? vm.PauseCommand : vm.PlayCommand
+            : vm.PlaybackActive
+                ? e.Key == Key.Left ? vm.SeekBackwardCommand : vm.SeekForwardCommand
+                : e.Key == Key.Left ? vm.PreviousFrameCommand : vm.NextFrameCommand;
+        if (command.CanExecute(null)) command.Execute(null);
+    }
+
+    private void QueueLoadingRow(object? sender, DataGridRowEventArgs e)
+    {
+        if (e.Row.Index % 2 != 1) return;
+        if (global::Avalonia.Application.Current?.TryFindResource("Raised", null, out var brush) == true && brush is IBrush raised)
+            e.Row.Background = raised;
+    }
+
+    private static readonly DataFormat<EncodingJob> JobDrag = DataFormat.CreateInProcessFormat<EncodingJob>("pixelpeeker-job");
+
+    private async void QueuePressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (!e.GetCurrentPoint(QueueGrid).Properties.IsLeftButtonPressed) return;
+        if (RowAt(e.Source)?.DataContext is not EncodingJob job) return;
+        var transfer = new DataTransfer();
+        transfer.Add(DataTransferItem.Create(JobDrag, job));
+        await DragDrop.DoDragDropAsync(e, transfer, DragDropEffects.Move);
+    }
+
+    private void QueueDragOver(object? sender, DragEventArgs e)
+    {
+        if (!e.DataTransfer.Contains(JobDrag)) return;
+        e.DragEffects = DragDropEffects.Move;
+        e.Handled = true;
+    }
+
+    private async void QueueDrop(object? sender, DragEventArgs e)
+    {
+        if (DataContext is not EditorViewModel vm || e.DataTransfer.TryGetValue(JobDrag) is not EncodingJob job) return;
+        e.Handled = true;
+        var target = RowAt(e.Source)?.DataContext as EncodingJob;
+        await vm.MoveJobAsync(job, target is null ? Math.Max(0, vm.Jobs.Count - 1) : vm.Jobs.IndexOf(target));
+    }
+
+    private static DataGridRow? RowAt(object? source)
+    {
+        var visual = source as Visual;
+        while (visual is not null)
+        {
+            if (visual is DataGridRow row) return row;
+            visual = visual.GetVisualParent();
+        }
+        return null;
+    }
+
+    private static void MoveSliderToPoint(Slider slider)
+    {
+        slider.AddHandler(InputElement.PointerPressedEvent, (_, e) =>
+        {
+            if (e.Source is Thumb || !e.GetCurrentPoint(slider).Properties.IsLeftButtonPressed) return;
+            var span = Math.Max(1, slider.Bounds.Width - 14);
+            var ratio = Math.Clamp((e.GetPosition(slider).X - 7) / span, 0, 1);
+            var value = slider.Minimum + ratio * (slider.Maximum - slider.Minimum);
+            if (slider.IsSnapToTickEnabled && slider.TickFrequency > 0)
+                value = slider.Minimum + Math.Round((value - slider.Minimum) / slider.TickFrequency) * slider.TickFrequency;
+            slider.Value = Math.Clamp(value, slider.Minimum, slider.Maximum);
+        }, RoutingStrategies.Tunnel, true);
     }
 
     private async void WindowDrop(object? sender, DragEventArgs e)

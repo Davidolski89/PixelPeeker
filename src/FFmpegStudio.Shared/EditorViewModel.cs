@@ -140,10 +140,26 @@ public sealed partial class EditorViewModel : ObservableObject
     [ObservableProperty] private Preset? selectedPreset;
     [ObservableProperty] private string statusText = L.T("PixelPeeker wird vorbereitet …");
     [ObservableProperty] private string installedVersion = L.T("Nicht installiert");
+    [ObservableProperty] private string availableVersion = L.T("Noch nicht geprüft");
     [ObservableProperty] private string distributionNote = "";
     [ObservableProperty] private string mediaDetails = L.T("Noch keine Datei ausgewählt.");
     [ObservableProperty] private string queueSummary = L.T("Keine Jobs");
     [ObservableProperty] private string commandText = "";
+    [ObservableProperty] private string displayedCommandText = "";
+    [ObservableProperty] private string commandPreviewDescription = "";
+    [ObservableProperty] private bool canCopyCommand;
+    private int commandViewIndex;
+    public int CommandViewIndex
+    {
+        get => commandViewIndex;
+        set
+        {
+            if (value is not (0 or 1) || !SetProperty(ref commandViewIndex, value)) return;
+            OnPropertyChanged(nameof(IsJobCommandPreview));
+            RefreshCommandPreview();
+        }
+    }
+    public bool IsJobCommandPreview => CommandViewIndex == 1;
     [ObservableProperty] private string validationText = "";
     [ObservableProperty] private string encoderInfo = "";
     [ObservableProperty] private string conversion = "";
@@ -308,6 +324,7 @@ public sealed partial class EditorViewModel : ObservableObject
         settings.Current.Codecs.SeedFromJobs(Jobs);
         initialized = true;
         RefreshLanguage();
+        RefreshCommandPreview();
         StatusText = startupError ?? (versions.Active is not null
             ? L.T("Bereit · Dateien oder Ordner in die Bibliothek ziehen.")
             : distribution.SupportsManagedInstall
@@ -368,6 +385,7 @@ public sealed partial class EditorViewModel : ObservableObject
         if (action == CompletionAction.Benachrichtigung)
         {
             StatusText = SessionAlerts.Notify();
+            await DesktopNotification.ShowAsync(AppIdentity.Name, StatusText);
             return;
         }
         if (action is CompletionAction.Energiesparen or CompletionAction.Herunterfahren)
@@ -518,7 +536,11 @@ public sealed partial class EditorViewModel : ObservableObject
         finally { applyingPreset = false; }
     }
 
-    partial void OnSelectedJobChanged(EncodingJob? value) => OnPropertyChanged(nameof(SelectedJobDetails));
+    partial void OnSelectedJobChanged(EncodingJob? value)
+    {
+        OnPropertyChanged(nameof(SelectedJobDetails));
+        RefreshCommandPreview();
+    }
 
     private void Observe(INotifyPropertyChanged value)
     {
@@ -586,6 +608,7 @@ public sealed partial class EditorViewModel : ObservableObject
             ValidationText = "";
             Conversion = "";
             EstimateText = "";
+            RefreshCommandPreview();
             NotifyPresentation();
             return;
         }
@@ -596,6 +619,7 @@ public sealed partial class EditorViewModel : ObservableObject
         EstimateText = current.Estimate;
         CommandText = current.Command.Length == 0 ? current.Validation : current.Command;
         OnPropertyChanged(nameof(CutSummary));
+        RefreshCommandPreview();
         OnPropertyChanged(nameof(OutputFileNamePreview));
         OnPropertyChanged(nameof(AudioTracks));
         NotifyPresentation();
@@ -800,6 +824,7 @@ public sealed partial class EditorViewModel : ObservableObject
     [RelayCommand] private Task CheckFfmpegAsync() => RunAsync(L.T("FFmpeg-Version online prüfen …"), async ct =>
     {
         remote = await distribution.CheckAsync(ct);
+        AvailableVersion = remote.Version;
         var newer = OperatingSystem.IsWindows()
             ? VersionMetadata.IsNewBuild(versions.Active?.Version, remote.Version)
             : LinuxFfmpegSources.IsNewer(versions.Active?.Version, remote.Version);
@@ -809,6 +834,7 @@ public sealed partial class EditorViewModel : ObservableObject
     [RelayCommand] private Task InstallFfmpegAsync() => RunAsync(L.T("FFmpeg herunterladen und installieren …"), async ct =>
     {
         remote = await distribution.CheckAsync(ct);
+        AvailableVersion = remote.Version;
         await distribution.InstallAsync(remote, new Progress<DownloadProgress>(progress =>
         {
             DownloadPercent = progress.Percent;
@@ -860,6 +886,97 @@ public sealed partial class EditorViewModel : ObservableObject
         RefreshEncoderChoices(false);
         RefreshSummary();
     }
+
+    private void RefreshCommandPreview()
+    {
+        CanCopyCommand = false;
+        if (!IsJobCommandPreview)
+        {
+            if (SelectedMedia is null)
+            {
+                DisplayedCommandText = "";
+                CommandPreviewDescription = L.T("Eine Datei aus der Medienbibliothek auswählen, um den Aufruf zu sehen.");
+            }
+            else if (CommandText.Length == 0)
+            {
+                CommandPreviewDescription = L.T("Die aktuellen Einstellungen sind ungültig. Bitte die angezeigten Fehler korrigieren.");
+                DisplayedCommandText = ValidationText;
+            }
+            else
+            {
+                CommandPreviewDescription = L.T("Vorschau der aktuellen Einstellungen. Dateikollisionen und der temporäre Dateiname werden beim Jobstart berücksichtigt.");
+                DisplayedCommandText = CommandText;
+                CanCopyCommand = true;
+            }
+            return;
+        }
+        if (SelectedJob is not { } job)
+        {
+            DisplayedCommandText = "";
+            CommandPreviewDescription = L.T("Einen Queue-Job auswählen, um seinen Aufruf zu sehen.");
+            return;
+        }
+        if (job.ExecutedCommand.Length > 0)
+        {
+            CommandPreviewDescription = L.F($"Tatsächlich gestarteter Aufruf für {job.Name}. Die temporäre Ausgabedatei wird nach erfolgreichem Encoding umbenannt.");
+            DisplayedCommandText = job.ExecutedCommand;
+            CanCopyCommand = true;
+        }
+        else if (job.Status is JobStatus.Wartend or JobStatus.Zurückgestellt)
+        {
+            CommandPreviewDescription = L.F($"Vorschau für Queue-Job {job.Name}. Der temporäre Dateiname kann sich beim Start ändern.");
+            try
+            {
+                DisplayedCommandText = FFmpegCommandBuilder.Display(job.Tools.FFmpegPath, builder.Build(job.Source, job.Options, job.PartialPath));
+                CanCopyCommand = true;
+            }
+            catch (Exception e) { DisplayedCommandText = e.Message; }
+        }
+        else if (job.Status == JobStatus.Läuft)
+        {
+            DisplayedCommandText = "";
+            CommandPreviewDescription = L.T("Der Job wird vorbereitet. Der gestartete Aufruf erscheint hier, sobald FFmpeg läuft.");
+        }
+        else
+        {
+            DisplayedCommandText = "";
+            CommandPreviewDescription = L.T("Kein gespeicherter Aufruf vorhanden. Bei älteren Jobs steht er im Jobprotokoll.");
+        }
+    }
+
+    public async Task MoveJobAsync(EncodingJob source, int index)
+    {
+        await queue.MoveAsync(source, index);
+        ui.Invoke(() =>
+        {
+            Jobs.Clear();
+            foreach (var job in queue.Jobs) Jobs.Add(job);
+            SelectedJob = source;
+            UpdateQueueSummary();
+        });
+    }
+
+    [RelayCommand]
+    private Task RollbackFfmpegAsync() => RunAsync(L.T("Vorherige FFmpeg-Version aktivieren …"), async ct =>
+    {
+        await versions.RollbackAsync(ct);
+        await RefreshAfterInstallAsync(ct);
+        StatusText = L.T("Vorherige Version aktiviert.");
+    });
+
+    [RelayCommand]
+    private Task SelectLocalFfmpegAsync() => RunAsync(L.T("Lokale FFmpeg-Installation prüfen …"), async ct =>
+    {
+        var ffmpeg = await prompts.PickOpenFileAsync(L.T("ffmpeg auswählen")) ?? "";
+        if (ffmpeg.Length == 0) return;
+        var ffprobe = Path.Combine(Path.GetDirectoryName(ffmpeg) ?? "", OperatingSystem.IsWindows() ? "ffprobe.exe" : "ffprobe");
+        if (!File.Exists(ffprobe))
+            ffprobe = await prompts.PickOpenFileAsync(L.T("ffprobe auswählen")) ?? "";
+        if (!File.Exists(ffprobe)) return;
+        await versions.SelectLocalAsync(ffmpeg, ffprobe, ct);
+        await RefreshAfterInstallAsync(ct);
+        StatusText = L.T("Lokale Installation geprüft. Dateien bleiben unverändert.");
+    });
 
     private void UpdateQueueSummary()
     {

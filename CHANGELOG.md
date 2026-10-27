@@ -1,5 +1,9 @@
 # Änderungen
 
+## 0.10.46 – 27. Oktober 2026
+
+- Die Avalonia-Oberfläche übernimmt die noch offenen WPF-Details: Schieberegler mit 4-Pixel-Spur und 16-Pixel-Punkt, Kombinationsfelder mit Häkchen, den roten Schnittstreifen, die Umschaltung zwischen aktuellen Einstellungen und Queue-Job im Befehls-Tab und den Untertitel „VIDEO · AUDIO · PRÄZISION“. Der Hinweis zu FFmpeg und libvlc steht unter der Statuszeile. Die FFmpeg-Verwaltung zeigt die verfügbare Version, lokale Programme und Rollback. Der Vergleich hat Modus, Legende, Fokus und Leertaste-für-Referenz. Fertige Jobs lassen sich in der Tabelle ziehen; zwei markierte Encodes öffnen den Vergleich. Nach einem erfolgreichen Lauf zeigt Linux eine Freedesktop-Benachrichtigung (`gdbus`, sonst `dbus-send`, sonst `notify-send`). Die Windows-Oberfläche bleibt unverändert.
+
 ## 0.10.45 – 27. Oktober 2026
 
 - Die Avalonia-Oberfläche folgt dem Aufbau der WPF-Anwendung: Kopfzeile, Werkzeugleiste, Bibliothek mit Presets, Vorschau mit Schnitt und Filtern, eigener Encoder-Tab (Video, Audio, Untertitel, Ausgabe), Mediendaten, Befehl, Protokoll und die Queue mit Tabelle darunter. Farben, Abstände, Ecken und Zustände kommen aus `Themes/StudioTheme.axaml` und denselben Themen des `ThemeCatalog`. Die Schrift ist Segoe UI, wenn sie installiert ist, sonst Inter. Die Queue, die Qualitätsanalyse und die Ergebnisliste nutzen `Avalonia.Controls.DataGrid` 12.1.2. Die Windows-Oberfläche bleibt unverändert.

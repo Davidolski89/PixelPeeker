@@ -24,8 +24,8 @@ public sealed class ComparisonAvailabilityView : Control
 
     public ComparisonAvailabilityView()
     {
-        Height = 18;
-        MinHeight = 18;
+        Height = 12;
+        MinHeight = 12;
         Cursor = new Cursor(StandardCursorType.Hand);
         Focusable = false;
     }
@@ -78,7 +78,8 @@ public sealed class ComparisonAvailabilityView : Control
         var height = Bounds.Height;
         if (Duration <= 0 || !double.IsFinite(Duration) || width <= 0 || height <= 0) return;
         var available = new SolidColorBrush(Color.Parse("#70DBC1"));
-        var border = new SolidColorBrush(Color.Parse("#A5B4C9"));
+        var border = new SolidColorBrush(Color.Parse("#FFCB7B"));
+        context.FillRectangle(new SolidColorBrush(Color.Parse("#202A3A")), new Rect(0, 0, width, height));
         foreach (var segment in Intervals ?? [])
         {
             var x = Math.Clamp(segment.Start / Duration, 0, 1) * width;
@@ -107,6 +108,7 @@ public sealed class ComparisonAvailabilityView : Control
             }
         }
         var marker = Math.Clamp(Position / Duration, 0, 1) * width;
+        context.DrawLine(new Pen(Brushes.Black, 3), new Point(marker, 0), new Point(marker, height));
         context.DrawLine(new Pen(Brushes.White, 1), new Point(marker, 0), new Point(marker, height));
     }
 }
