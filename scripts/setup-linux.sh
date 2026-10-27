@@ -764,8 +764,9 @@ prepare_sudo() {
     return 1
   fi
   SUDO=(sudo)
-  say "Requesting sudo credentials once."
-  "${SUDO[@]}" -v || return 1
+  # The first real sudo command prompts when a password is required and then
+  # caches it. sudo -v is not used: on some systems it asks even when the
+  # package-manager command itself is allowed without a password.
   PREPARED_SUDO=1
 }
 
