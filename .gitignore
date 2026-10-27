@@ -5,3 +5,4 @@ artifacts/
 .test-data/
 TestResults/
 *.user
+pixelpeeker-linux-check.log
