@@ -36,7 +36,7 @@
                 <Image Width="42" Height="42" Source="avares://PixelPeeker.Avalonia/Assets/PixelPeeker.png"/>
                 <StackPanel VerticalAlignment="Center" Spacing="0">
                     <TextBlock Text="PixelPeeker" FontSize="24" FontWeight="SemiBold"/>
-                    <TextBlock x:Name="PhaseNote" Text="{Binding PhaseNote}" Classes="muted"/>
+                    <TextBlock Text="{local:Tr VIDEO · AUDIO · PRÄZISION}" FontSize="10" Classes="muted" Margin="1,3,0,0"/>
                 </StackPanel>
             </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
@@ -121,8 +121,11 @@
                                         <Button Content="+10 s" Command="{Binding SeekForwardCommand}"/>
                                         <Button x:Name="PreviousFrameButton" Content="{Binding PreviousFrameLabel}" Command="{Binding PreviousFrameCommand}"/>
                                         <Button x:Name="NextFrameButton" Content="{Binding NextFrameLabel}" Command="{Binding NextFrameCommand}"/>
+                                        <Slider Classes="point" Width="68" Minimum="0" Maximum="100" Value="{Binding PlaybackVolume}" VerticalAlignment="Center" ToolTip.Tip="{local:Tr Lautstärke der Quellwiedergabe}"/>
+                                        <CheckBox Content="{local:Tr Stumm}" IsChecked="{Binding PlaybackMuted}" VerticalAlignment="Center" Margin="8,0,0,0"/>
                                     </WrapPanel>
-                                    <Slider Minimum="0" Maximum="{Binding PreviewMaximum}" Value="{Binding PreviewSeconds}" TickFrequency="0.04"/>
+                                    <local:CutTimelineView Height="5" Margin="6,0,6,2" IsHitTestVisible="False" x:CompileBindings="False" Cuts="{Binding CutEntries}" Duration="{Binding PreviewMaximum}" Active="{Binding SelectedMedia.Options.CutsEnabled}"/>
+                                    <Slider x:Name="PreviewTimeline" Classes="point" Minimum="0" Maximum="{Binding PreviewMaximum}" Value="{Binding PreviewSeconds}" TickFrequency="1" KeyDown="PreviewTimelineKeyDown" ToolTip.Tip="{local:Tr Text='Ziehen oder klicken lädt nach kurzer Pause automatisch ein Bild. Pfeil links/rechts wechselt bei fokussiertem Zeitregler genau ein Quellbild.'}"/>
                                     <WrapPanel>
                                         <TextBlock Classes="label" Text="{local:Tr Position (s)}" VerticalAlignment="Center"/>
                                         <TextBox x:CompileBindings="False" Text="{Binding PreviewSeconds}" Width="90"/>
@@ -242,7 +245,7 @@
                                                         <TextBlock Classes="accent" Text="{Binding SelectedMedia.Options.Video.Quality, StringFormat={}{0:0.##}}" HorizontalAlignment="Center"/>
                                                     </Border>
                                                 </Grid>
-                                                <Slider Minimum="{Binding VideoQualityMinimum}" Maximum="{Binding VideoQualityMaximum}" SmallChange="{Binding VideoQualityStep}" TickFrequency="{Binding VideoQualityStep}" IsSnapToTickEnabled="True" Value="{Binding SelectedMedia.Options.Video.Quality}" ToolTip.Tip="{Binding VideoQualityHint}"/>
+                                                <Slider Classes="point" Minimum="{Binding VideoQualityMinimum}" Maximum="{Binding VideoQualityMaximum}" SmallChange="{Binding VideoQualityStep}" LargeChange="{Binding VideoQualityStep}" TickFrequency="{Binding VideoQualityStep}" IsSnapToTickEnabled="True" Value="{Binding SelectedMedia.Options.Video.Quality}" ToolTip.Tip="{Binding VideoQualityHint}"/>
                                                 <Grid>
                                                     <TextBlock Classes="muted" Text="{Binding VideoQualityMinimum}" HorizontalAlignment="Left"/>
                                                     <TextBlock Classes="muted" Text="{Binding VideoQualityMaximum}" HorizontalAlignment="Right"/>
@@ -257,7 +260,7 @@
                                                         <TextBlock Classes="accent" Text="{Binding VideoPresetText}" TextTrimming="CharacterEllipsis" MaxWidth="220"/>
                                                     </Border>
                                                 </Grid>
-                                                <Slider Minimum="0" Maximum="{Binding VideoPresetMaximumIndex}" SmallChange="1" LargeChange="1" TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding VideoPresetIndex}" ToolTip.Tip="{Binding VideoPresetText}"/>
+                                                <Slider Classes="point" Minimum="0" Maximum="{Binding VideoPresetMaximumIndex}" SmallChange="1" LargeChange="1" TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding VideoPresetIndex}" ToolTip.Tip="{Binding VideoPresetText}"/>
                                                 <Grid>
                                                     <TextBlock Classes="muted" Text="{Binding VideoPresetMinimum}" HorizontalAlignment="Left"/>
                                                     <TextBlock Classes="muted" Text="{Binding VideoPresetMaximum}" HorizontalAlignment="Right"/>
@@ -435,11 +438,18 @@
                     </TabItem>
                     <TabItem x:Name="LargeCommandTab" Header="{Binding CommandHeading}">
                         <DockPanel Margin="4">
-                            <WrapPanel DockPanel.Dock="Bottom">
+                            <StackPanel DockPanel.Dock="Top">
+                                <ComboBox x:Name="CommandSourceSelector" SelectedIndex="{Binding CommandViewIndex}">
+                                    <ComboBoxItem Content="{local:Tr Aktuelle Einstellungen}"/>
+                                    <ComboBoxItem Content="{local:Tr Ausgewählter Queue-Job}"/>
+                                </ComboBox>
+                                <TextBlock Classes="muted" FontSize="11" Margin="0,3,0,9" Text="{Binding CommandPreviewDescription}" TextWrapping="Wrap"/>
+                            </StackPanel>
+                            <WrapPanel DockPanel.Dock="Bottom" Margin="0,9,0,0">
                                 <Button Content="{local:Tr Befehl kopieren}" Click="CopyCommandClick"/>
-                                <Button Content="{local:Tr Jobprotokoll}" Command="{Binding ShowJobLogCommand}"/>
+                                <Button Content="{local:Tr Jobprotokoll}" Command="{Binding ShowJobLogCommand}" IsVisible="{Binding IsJobCommandPreview}"/>
                             </WrapPanel>
-                            <TextBox x:Name="CommandPreviewText" Classes="mono" Text="{Binding CommandText}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"/>
+                            <TextBox x:Name="CommandPreviewText" Classes="mono" Text="{Binding DisplayedCommandText}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"/>
                         </DockPanel>
                     </TabItem>
                     <TabItem x:Name="LogTab" Header="{local:Tr Protokoll}">
@@ -494,7 +504,8 @@
                 </StackPanel>
                 <ProgressBar DockPanel.Dock="Top" Minimum="0" Maximum="100" Value="{Binding QueueProgress}" Margin="0,4,8,6"/>
                 <DataGrid x:Name="QueueGrid" ItemsSource="{Binding Jobs}" SelectedItem="{Binding SelectedJob}"
-                          AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Extended" GridLinesVisibility="None">
+                          AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Extended" GridLinesVisibility="None"
+                          LoadingRow="QueueLoadingRow">
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*"/>
                         <DataGridTextColumn Header="Preset" Binding="{Binding PresetName}" Width="140"/>
@@ -523,7 +534,7 @@
                 <WrapPanel DockPanel.Dock="Top">
                     <Button x:Name="AnalyzeButton" Content="{Binding AnalyzeLabel}" Command="{Binding AnalyzeQualityCommand}"/>
                     <Button Content="{local:Tr Analyse zeigen}" Command="{Binding ShowAnalysisCommand}"/>
-                    <Button x:Name="CompareButton" Classes="primary" Content="{Binding CompareLabel}" Command="{Binding CompareEncodesCommand}"/>
+                    <Button x:Name="CompareButton" Classes="primary" Content="{Binding CompareLabel}" Click="CompareSelectedClick"/>
                     <Button x:Name="ResultsButton" Content="{Binding ResultsLabel}" Command="{Binding CompareResultsCommand}"/>
                     <Button Content="{local:Tr Ausgabe öffnen}" Command="{Binding OpenOutputCommand}"/>
                     <Button Content="{local:Tr Jobprotokoll}" Command="{Binding ShowJobLogCommand}"/>
@@ -546,7 +557,8 @@
         <Border Grid.Row="5" Padding="0,8,0,0">
             <StackPanel>
                 <TextBlock x:Name="StatusText" Text="{Binding StatusText}" Foreground="{DynamicResource Accent}" FontSize="12" MaxHeight="45"/>
-                <TextBlock Classes="muted" Text="{Binding DistributionNote}"/>
+                <TextBlock x:Name="PhaseNote" Text="{Binding PhaseNote}" Classes="muted" FontSize="11" Margin="0,4,0,0"/>
+                <TextBlock Classes="muted" Text="{Binding DistributionNote}" FontSize="11"/>
             </StackPanel>
         </Border>
     </Grid>

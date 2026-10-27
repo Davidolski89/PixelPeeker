@@ -39,7 +39,7 @@ public sealed partial class EncodeComparisonSession : ObservableObject
     [ObservableProperty] private double position;
     [ObservableProperty] private double offsetA;
     [ObservableProperty] private double offsetB;
-    [ObservableProperty] private double zoom = 1;
+    [ObservableProperty] private double zoom;
     [ObservableProperty] private string status = "";
     [ObservableProperty] private string? originalPath;
     [ObservableProperty] private string? pathA;

@@ -29,9 +29,9 @@ public sealed class AvaloniaEditorPrompts : IEditorPrompts
     {
         var window = Owner() ?? throw new InvalidOperationException(L.T("Kein Fenster für die Eingabe."));
         string? value = null;
-        var dialog = Dialog(title, 440, 220);
+        var dialog = Dialog(title, 520, 220);
         var input = new TextBox { Text = initial, PlaceholderText = label };
-        var ok = new Button { Content = L.T("OK"), MinWidth = 88 };
+        var ok = new Button { Content = L.T("Speichern"), MinWidth = 88 };
         var cancel = new Button { Content = L.T("Abbrechen"), MinWidth = 88 };
         ok.Click += (_, _) => { value = input.Text; dialog.Close(); };
         cancel.Click += (_, _) => dialog.Close();
