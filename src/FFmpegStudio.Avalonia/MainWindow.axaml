@@ -8,201 +8,546 @@
         x:Class="FFmpegStudio.Avalonia.MainWindow"
         x:DataType="vm:EditorViewModel"
         x:Name="Root"
+        Classes="studio"
         Title="PixelPeeker"
-        Width="1280" Height="820"
-        MinWidth="900" MinHeight="560"
-        Background="{DynamicResource StudioBg}"
-        Foreground="{DynamicResource StudioText}"
+        Width="1540" Height="1020"
+        MinWidth="1120" MinHeight="760"
+        Background="{DynamicResource Bg}"
+        Foreground="{DynamicResource Text}"
         input:DragDrop.AllowDrop="True">
     <Window.Resources>
         <local:ImagePathConverter x:Key="ImagePath"/>
+        <local:EnumTextConverter x:Key="EnumText"/>
+        <DataTemplate x:Key="EnumItem" x:CompileBindings="False">
+            <TextBlock Text="{Binding Converter={StaticResource EnumText}}"/>
+        </DataTemplate>
+        <DataTemplate x:Key="PresetItem" x:DataType="core:Preset">
+            <TextBlock Text="{Binding Name}"/>
+        </DataTemplate>
     </Window.Resources>
-    <Grid Margin="16" RowDefinitions="Auto,Auto,*,Auto" RowSpacing="10">
-        <StackPanel Grid.Row="0" Spacing="4">
-            <TextBlock Text="PixelPeeker" FontSize="22" FontWeight="SemiBold"/>
-            <TextBlock x:Name="PhaseNote" Text="{Binding PhaseNote}" TextWrapping="Wrap" Foreground="{DynamicResource StudioMuted}"/>
-        </StackPanel>
-        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="12">
-            <WrapPanel Orientation="Horizontal">
-                <Button x:Name="OpenFileButton" Content="{Binding OpenFileLabel}" Click="OpenFileClick" Margin="0,0,8,8"
-                        Background="{DynamicResource StudioAccent}" Foreground="#0E2420" Padding="12,6"/>
-                <Button Content="{Binding InstallFfmpegLabel}" Command="{Binding InstallFfmpegCommand}" Margin="0,0,8,8" Padding="12,6"/>
-                <Button Content="{Binding SystemFfmpegLabel}" Command="{Binding UseSystemFfmpegCommand}" Margin="0,0,8,8" Padding="12,6"/>
-                <Button Content="{Binding CheckFfmpegLabel}" Command="{Binding CheckFfmpegCommand}" Margin="0,0,8,8" Padding="12,6"/>
-                <Button x:Name="SettingsButton" Content="{Binding SettingsLabel}" Command="{Binding EditSettingsCommand}" Margin="0,0,8,8" Padding="12,6"/>
-            </WrapPanel>
-            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                <TextBlock Text="FFmpeg" Foreground="{DynamicResource StudioMuted}"/>
-                <TextBlock x:Name="InstalledVersionText" Text="{Binding InstalledVersion}"/>
+    <Window.KeyBindings>
+        <KeyBinding Gesture="Ctrl+O" Command="{Binding ImportFilesCommand}"/>
+        <KeyBinding Gesture="Ctrl+Enter" Command="{Binding AddQueueCommand}"/>
+        <KeyBinding Gesture="F5" Command="{Binding StartQueueCommand}"/>
+    </Window.KeyBindings>
+    <Grid Margin="16" RowDefinitions="Auto,Auto,3*,Auto,1.2*,Auto">
+        <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <Image Width="42" Height="42" Source="avares://PixelPeeker.Avalonia/Assets/PixelPeeker.png"/>
+                <StackPanel VerticalAlignment="Center" Spacing="0">
+                    <TextBlock Text="PixelPeeker" FontSize="24" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="PhaseNote" Text="{Binding PhaseNote}" Classes="muted"/>
+                </StackPanel>
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="{Binding InstalledVersion}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <Button Content="{local:Tr FFmpeg verwalten}" Command="{Binding ManageFfmpegCommand}"/>
+                <Button x:Name="SettingsButton" Content="{Binding SettingsLabel}" Command="{Binding EditSettingsCommand}"/>
             </StackPanel>
         </Grid>
-        <Grid Grid.Row="2" ColumnDefinitions="280,*,340" ColumnSpacing="12">
-            <Border Background="{DynamicResource StudioSurface}" BorderBrush="{DynamicResource StudioBorder}" BorderThickness="1" CornerRadius="8" Padding="10">
+
+        <Grid Grid.Row="1" Margin="0,12,0,8" ColumnDefinitions="3*,2*">
+            <WrapPanel x:Name="ImportActionsPanel">
+                <Button x:Name="OpenFileButton" Content="{local:Tr Dateien importieren}" Command="{Binding ImportFilesCommand}"/>
+                <Button Content="{local:Tr Ordner importieren}" Command="{Binding ImportFolderCommand}"/>
+                <Button x:Name="AddQueueButton" Classes="primary" Content="{local:Tr Zur Queue hinzufügen}" Command="{Binding AddQueueCommand}"/>
+                <Button Content="{local:Tr Auswahl hinzufügen}" Click="AddSelectedClick"/>
+                <Button Content="{local:Tr Auswahl übernehmen}" Click="ApplySelectedClick"/>
+                <Button Content="{local:Tr Abbrechen}" Command="{Binding CancelOperationCommand}" IsVisible="{Binding IsBusy}"/>
+            </WrapPanel>
+            <TextBlock x:Name="HardwareTextBlock" Grid.Column="1" Classes="muted" Text="{Binding HardwareText}"
+                       ToolTip.Tip="{Binding HardwareText}" HorizontalAlignment="Right" VerticalAlignment="Center" TextWrapping="Wrap"/>
+        </Grid>
+
+        <Grid Grid.Row="2" ColumnDefinitions="235,7,*">
+            <Border Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="5" Padding="8" MinWidth="180">
                 <DockPanel>
-                    <TextBlock DockPanel.Dock="Top" Text="{Binding LibraryHeading}" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                    <Button DockPanel.Dock="Bottom" Content="{Binding RemoveLabel}" Command="{Binding RemoveMediaCommand}" Margin="0,8,0,0"/>
-                    <ListBox x:Name="MediaList" ItemsSource="{Binding Media}" SelectedItem="{Binding SelectedMedia}" Background="Transparent" BorderThickness="0">
+                    <StackPanel DockPanel.Dock="Top" Spacing="2" Margin="0,0,0,8">
+                        <TextBlock Text="{Binding LibraryHeading}" FontSize="16" FontWeight="SemiBold"/>
+                        <TextBlock Classes="muted" Text="{local:Tr Dateien und Presets}"/>
+                    </StackPanel>
+                    <StackPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                        <ComboBox x:Name="PresetSelector" ItemsSource="{Binding Presets}" SelectedItem="{Binding SelectedPreset}" ItemTemplate="{StaticResource PresetItem}"/>
+                        <WrapPanel>
+                            <Button Content="{Binding SavePresetLabel}" Command="{Binding SavePresetCommand}"/>
+                            <Button Content="{local:Tr Bearbeiten}" Command="{Binding EditPresetCommand}"/>
+                            <Button Content="{local:Tr Duplizieren}" Command="{Binding DuplicatePresetCommand}"/>
+                            <Button Content="{Binding ImportPresetLabel}" Command="{Binding ImportPresetCommand}"/>
+                            <Button Content="{Binding ExportPresetLabel}" Command="{Binding ExportPresetCommand}"/>
+                            <Button Content="{Binding DeletePresetLabel}" Command="{Binding DeletePresetCommand}"/>
+                        </WrapPanel>
+                    </StackPanel>
+                    <Button DockPanel.Dock="Bottom" Content="{Binding RemoveLabel}" Command="{Binding RemoveMediaCommand}"/>
+                    <ListBox x:Name="MediaList" ItemsSource="{Binding Media}" SelectedItem="{Binding SelectedMedia}" SelectionMode="Multiple" Background="Transparent">
                         <ListBox.ItemTemplate>
                             <DataTemplate x:DataType="vm:EditorMedia">
-                                <StackPanel Margin="0,4">
+                                <StackPanel Margin="0,2">
                                     <Image Source="{Binding ThumbnailPath, Converter={StaticResource ImagePath}}"
                                            IsVisible="{Binding ThumbnailPath, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}"
                                            Height="42" Stretch="Uniform" HorizontalAlignment="Left"/>
-                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-                                    <TextBlock Text="{Binding Summary}" Foreground="{DynamicResource StudioMuted}" TextWrapping="Wrap"/>
+                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Path}"/>
+                                    <TextBlock Text="{Binding Summary}" Classes="muted"/>
                                 </StackPanel>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
                 </DockPanel>
             </Border>
-            <Grid Grid.Column="1" RowDefinitions="*,Auto,Auto" RowSpacing="8">
-                <Border Background="#080B10" CornerRadius="8" ClipToBounds="True">
-                    <Grid>
-                        <Image x:Name="PreviewImage" Stretch="Uniform"/>
-                        <ContentControl x:Name="VideoHost"/>
-                        <TextBlock Text="{Binding PlaybackStatus}" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="8" Foreground="#D5DDE8"/>
+            <GridSplitter Grid.Column="1" ResizeDirection="Columns" Width="7" Background="Transparent"/>
+            <Grid Grid.Column="2" RowDefinitions="*,Auto,Auto" MinWidth="650">
+                <TabControl x:Name="MainPreviewTabs" SelectionChanged="MainTabsChanged">
+                    <TabItem x:Name="PreviewTab" Header="{Binding PreviewLabel}">
+                        <Grid x:Name="PreviewWorkspace" ColumnDefinitions="400,12,*">
+                            <Grid RowDefinitions="*,Auto" MinWidth="300">
+                                <Border x:Name="PreviewImageArea" Background="#080B10" CornerRadius="5" ClipToBounds="True" ToolTip.Tip="{Binding PlaybackStatus}">
+                                    <Grid>
+                                        <TextBlock Text="{local:Tr Vorschau}" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource Muted}"/>
+                                        <Image x:Name="PreviewImage" Stretch="Uniform"/>
+                                        <ContentControl x:Name="VideoHost" IsVisible="{Binding PlaybackActive}"/>
+                                        <Border IsVisible="{Binding PlaybackBusy}" Background="#66000000">
+                                            <ProgressBar IsIndeterminate="True" Width="120" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <Border IsVisible="{Binding PreviewLoading}" Background="#66000000">
+                                            <ProgressBar IsIndeterminate="True" Width="120" VerticalAlignment="Center"/>
+                                        </Border>
+                                    </Grid>
+                                </Border>
+                                <StackPanel x:Name="PreviewControls" Grid.Row="1" Margin="0,8,0,0">
+                                    <WrapPanel>
+                                        <Button x:Name="PlayButton" Content="{Binding PlayLabel}" Command="{Binding PlayCommand}"/>
+                                        <Button x:Name="PauseButton" Content="{Binding PauseLabel}" Command="{Binding PauseCommand}"/>
+                                        <Button x:Name="StopButton" Content="{Binding StopLabel}" Command="{Binding StopPlaybackCommand}"/>
+                                        <Button Content="−10 s" Command="{Binding SeekBackwardCommand}"/>
+                                        <Button Content="+10 s" Command="{Binding SeekForwardCommand}"/>
+                                        <Button x:Name="PreviousFrameButton" Content="{Binding PreviousFrameLabel}" Command="{Binding PreviousFrameCommand}"/>
+                                        <Button x:Name="NextFrameButton" Content="{Binding NextFrameLabel}" Command="{Binding NextFrameCommand}"/>
+                                    </WrapPanel>
+                                    <Slider Minimum="0" Maximum="{Binding PreviewMaximum}" Value="{Binding PreviewSeconds}" TickFrequency="0.04"/>
+                                    <WrapPanel>
+                                        <TextBlock Classes="label" Text="{local:Tr Position (s)}" VerticalAlignment="Center"/>
+                                        <TextBox x:CompileBindings="False" Text="{Binding PreviewSeconds}" Width="90"/>
+                                        <TextBlock Classes="label" Text="{local:Tr Testlänge (s)}" VerticalAlignment="Center" Margin="8,10,0,5"/>
+                                        <TextBox x:CompileBindings="False" Text="{Binding TestSeconds}" Width="70"/>
+                                        <Button x:Name="TestEncodeButton" Classes="primary" Content="{Binding TestEncodeLabel}" Command="{Binding TestEncodeCommand}"/>
+                                    </WrapPanel>
+                                </StackPanel>
+                            </Grid>
+                            <TabControl Grid.Column="2" MinWidth="320">
+                                <TabItem x:Name="CutSettingsTab" Header="{Binding CutHeading}">
+                                    <ScrollViewer>
+                                        <StackPanel Margin="4" IsEnabled="{Binding HasEditableMedia}">
+                                            <TextBlock Classes="section" Text="{local:Tr Video schneiden}"/>
+                                            <CheckBox x:CompileBindings="False" Content="{local:Tr Schnittbereiche beim Export entfernen}" IsChecked="{Binding SelectedMedia.Options.CutsEnabled}"/>
+                                            <WrapPanel>
+                                                <Button Content="{local:Tr Start setzen}" Command="{Binding MarkCutStartCommand}"/>
+                                                <Button Content="{local:Tr Ende setzen}" Command="{Binding MarkCutEndCommand}"/>
+                                                <Button Content="{local:Tr Bis Dateiende entfernen}" Command="{Binding CutToEndCommand}"/>
+                                            </WrapPanel>
+                                            <WrapPanel>
+                                                <Button Content="{local:Tr Zum Start}" Command="{Binding JumpCutStartCommand}"/>
+                                                <Button Content="{local:Tr Zum Ende}" Command="{Binding JumpCutEndCommand}"/>
+                                                <Button Content="{local:Tr Bereich behalten}" Command="{Binding RemoveCutCommand}"/>
+                                                <Button Content="{local:Tr Alle Bereiche behalten}" Command="{Binding ClearCutsCommand}"/>
+                                            </WrapPanel>
+                                            <TextBlock Text="{Binding CutPositionStatus}" Margin="0,8,0,0"/>
+                                            <TextBlock Text="{Binding CutSummary}" Classes="muted"/>
+                                            <ListBox ItemsSource="{Binding CutEntries}" SelectedItem="{Binding SelectedCut}" MaxHeight="190" MinHeight="85">
+                                                <ListBox.ItemTemplate>
+                                                    <DataTemplate x:DataType="core:CutRegion">
+                                                        <TextBlock Text="{Binding Label}"/>
+                                                    </DataTemplate>
+                                                </ListBox.ItemTemplate>
+                                            </ListBox>
+                                            <TextBlock Classes="muted" Text="{local:Tr Überlappende Bereiche werden zusammengeführt. Das Endbild bleibt erhalten. Die Vorschau zeigt weiterhin die Quellzeitachse.}"/>
+                                        </StackPanel>
+                                    </ScrollViewer>
+                                </TabItem>
+                                <TabItem x:Name="FiltersSettingsTab" Header="{Binding FilterHeading}">
+                                    <ScrollViewer x:CompileBindings="False">
+                                        <StackPanel Margin="4" IsEnabled="{Binding HasEditableMedia}">
+                                            <TextBlock Classes="section" Text="{Binding FilterHeading}"/>
+                                            <TextBlock Classes="label" Text="{local:Tr Skalierung}"/>
+                                            <ComboBox ItemsSource="{x:Static vm:EditorViewModel.ScaleModes}" SelectedItem="{Binding SelectedMedia.Options.Filters.ScaleMode}" ItemTemplate="{StaticResource EnumItem}"/>
+                                            <TextBlock Classes="label" Text="{Binding WidthHeightLabel}"/>
+                                            <UniformGrid Columns="2">
+                                                <TextBox Text="{Binding SelectedMedia.Options.Filters.Width}" Margin="0,0,6,0"/>
+                                                <TextBox Text="{Binding SelectedMedia.Options.Filters.Height}"/>
+                                            </UniformGrid>
+                                            <TextBlock Classes="label" Text="{local:Tr Prozent}"/>
+                                            <TextBox Text="{Binding SelectedMedia.Options.Filters.Percent}"/>
+                                            <CheckBox Content="{local:Tr Hochskalieren erlauben}" IsChecked="{Binding SelectedMedia.Options.Filters.AllowUpscale}"/>
+                                            <TextBlock Classes="label" Text="{local:Tr Algorithmus}"/>
+                                            <ComboBox ItemsSource="{x:Static vm:EditorViewModel.Algorithms}" SelectedItem="{Binding SelectedMedia.Options.Filters.Algorithm}"/>
+                                            <Expander Header="{local:Tr Zuschneiden und Ränder}">
+                                                <StackPanel>
+                                                    <Button Content="{Binding DetectCropLabel}" Command="{Binding DetectCropCommand}"/>
+                                                    <CheckBox Content="{Binding CropLabel}" IsChecked="{Binding SelectedMedia.Options.Filters.CropEnabled}"/>
+                                                    <UniformGrid Columns="4">
+                                                        <TextBox Text="{Binding SelectedMedia.Options.Filters.CropLeft}" Margin="0,0,4,0"/>
+                                                        <TextBox Text="{Binding SelectedMedia.Options.Filters.CropRight}" Margin="0,0,4,0"/>
+                                                        <TextBox Text="{Binding SelectedMedia.Options.Filters.CropTop}" Margin="0,0,4,0"/>
+                                                        <TextBox Text="{Binding SelectedMedia.Options.Filters.CropBottom}"/>
+                                                    </UniformGrid>
+                                                    <CheckBox Content="{local:Tr Ränder hinzufügen}" IsChecked="{Binding SelectedMedia.Options.Filters.PadEnabled}"/>
+                                                    <UniformGrid Columns="2">
+                                                        <TextBox Text="{Binding SelectedMedia.Options.Filters.PadWidth}" Margin="0,0,6,0"/>
+                                                        <TextBox Text="{Binding SelectedMedia.Options.Filters.PadHeight}"/>
+                                                    </UniformGrid>
+                                                </StackPanel>
+                                            </Expander>
+                                            <Expander Header="{local:Tr Zeit und Ausrichtung}">
+                                                <StackPanel>
+                                                    <CheckBox Content="{local:Tr Deinterlace}" IsChecked="{Binding SelectedMedia.Options.Filters.Deinterlace}"/>
+                                                    <TextBlock Classes="label" Text="{local:Tr Bildrate}"/>
+                                                    <TextBox Text="{Binding SelectedMedia.Options.Filters.FrameRate}"/>
+                                                    <TextBlock Classes="label" Text="{local:Tr Drehung}"/>
+                                                    <TextBox Text="{Binding SelectedMedia.Options.Filters.Rotation}"/>
+                                                    <CheckBox Content="{local:Tr Horizontal spiegeln}" IsChecked="{Binding SelectedMedia.Options.Filters.FlipHorizontal}"/>
+                                                    <CheckBox Content="{local:Tr Vertikal spiegeln}" IsChecked="{Binding SelectedMedia.Options.Filters.FlipVertical}"/>
+                                                </StackPanel>
+                                            </Expander>
+                                            <Expander Header="{local:Tr Farbe}">
+                                                <StackPanel>
+                                                    <CheckBox Content="{local:Tr Tone Mapping}" IsChecked="{Binding SelectedMedia.Options.Filters.ToneMap}"/>
+                                                    <TextBlock Classes="label" Text="{local:Tr Tone-Mapping-Algorithmus}"/>
+                                                    <TextBox Text="{Binding SelectedMedia.Options.Filters.ToneMapAlgorithm}"/>
+                                                    <TextBlock Classes="label" Text="{local:Tr Farbraum}"/>
+                                                    <TextBox Text="{Binding SelectedMedia.Options.Filters.ColorSpace}"/>
+                                                </StackPanel>
+                                            </Expander>
+                                            <Expander Header="{local:Tr Eigene Filterkette}">
+                                                <TextBox Text="{Binding SelectedMedia.Options.Filters.CustomChain}" AcceptsReturn="True" MinHeight="70"/>
+                                            </Expander>
+                                        </StackPanel>
+                                    </ScrollViewer>
+                                </TabItem>
+                            </TabControl>
+                        </Grid>
+                    </TabItem>
+                    <TabItem x:Name="EncodeSettingsTab" Header="{Binding EncodeHeading}">
+                        <TabControl x:CompileBindings="False">
+                            <TabItem x:Name="VideoSettingsTab" Header="{local:Tr Video}">
+                                <ScrollViewer>
+                                    <StackPanel Margin="4" IsEnabled="{Binding HasEditableMedia}">
+                                        <TextBlock Classes="muted" Text="{Binding EncoderInfo}"/>
+                                        <Grid ColumnDefinitions="*,24,*">
+                                            <StackPanel>
+                                                <TextBlock Classes="label" Text="{Binding EncoderLabel}"/>
+                                                <ComboBox ItemsSource="{Binding VideoEncoders}" SelectedItem="{Binding SelectedMedia.Options.Video.Encoder}"/>
+                                                <TextBlock Classes="label" Text="{local:Tr Qualitätssteuerung}"/>
+                                                <ComboBox ItemsSource="{x:Static vm:EditorViewModel.RateControls}" SelectedItem="{Binding SelectedMedia.Options.Video.RateControl}" ItemTemplate="{StaticResource EnumItem}"/>
+                                                <Grid ColumnDefinitions="*,Auto">
+                                                    <TextBlock Classes="label" Text="{Binding VideoQualityCaption}" Margin="0"/>
+                                                    <Border Grid.Column="1" Background="{DynamicResource Raised}" CornerRadius="4" Padding="9,3" MinWidth="44">
+                                                        <TextBlock Classes="accent" Text="{Binding SelectedMedia.Options.Video.Quality, StringFormat={}{0:0.##}}" HorizontalAlignment="Center"/>
+                                                    </Border>
+                                                </Grid>
+                                                <Slider Minimum="{Binding VideoQualityMinimum}" Maximum="{Binding VideoQualityMaximum}" SmallChange="{Binding VideoQualityStep}" TickFrequency="{Binding VideoQualityStep}" IsSnapToTickEnabled="True" Value="{Binding SelectedMedia.Options.Video.Quality}" ToolTip.Tip="{Binding VideoQualityHint}"/>
+                                                <Grid>
+                                                    <TextBlock Classes="muted" Text="{Binding VideoQualityMinimum}" HorizontalAlignment="Left"/>
+                                                    <TextBlock Classes="muted" Text="{Binding VideoQualityMaximum}" HorizontalAlignment="Right"/>
+                                                </Grid>
+                                                <TextBlock Classes="muted" Text="{Binding VideoQualityHint}"/>
+                                                <TextBlock Classes="muted" Text="{Binding VideoModeDescription}"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2" IsEnabled="{Binding CanSetPreset}">
+                                                <Grid ColumnDefinitions="*,Auto">
+                                                    <TextBlock Classes="label" Text="{Binding PresetLabel}" Margin="0"/>
+                                                    <Border Grid.Column="1" Background="{DynamicResource Raised}" CornerRadius="4" Padding="9,3">
+                                                        <TextBlock Classes="accent" Text="{Binding VideoPresetText}" TextTrimming="CharacterEllipsis" MaxWidth="220"/>
+                                                    </Border>
+                                                </Grid>
+                                                <Slider Minimum="0" Maximum="{Binding VideoPresetMaximumIndex}" SmallChange="1" LargeChange="1" TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding VideoPresetIndex}" ToolTip.Tip="{Binding VideoPresetText}"/>
+                                                <Grid>
+                                                    <TextBlock Classes="muted" Text="{Binding VideoPresetMinimum}" HorizontalAlignment="Left"/>
+                                                    <TextBlock Classes="muted" Text="{Binding VideoPresetMaximum}" HorizontalAlignment="Right"/>
+                                                </Grid>
+                                                <TextBlock Classes="muted" Text="{Binding VideoPresetDescription}"/>
+                                            </StackPanel>
+                                        </Grid>
+                                        <StackPanel IsVisible="{Binding SelectedMedia.Options.Video.CanEditBitrate}">
+                                            <TextBlock Classes="label" Text="{local:Tr Bitrate (kbit/s)}"/>
+                                            <TextBox Text="{Binding SelectedMedia.Options.Video.BitRateKbps}"/>
+                                        </StackPanel>
+                                        <Expander Header="{local:Tr Format}">
+                                            <StackPanel>
+                                                <TextBlock Classes="label" Text="{local:Tr Pixelformat}"/>
+                                                <ComboBox ItemsSource="{Binding PixelFormats}" SelectedItem="{Binding SelectedMedia.Options.Video.PixelFormat}"/>
+                                                <TextBlock Classes="label" Text="{local:Tr Profil}"/>
+                                                <ComboBox ItemsSource="{Binding ProfileChoices}" SelectedItem="{Binding SelectedMedia.Options.Video.Profile}"/>
+                                                <TextBlock Classes="label" Text="{local:Tr Level}"/>
+                                                <TextBox Text="{Binding SelectedMedia.Options.Video.Level}"/>
+                                                <TextBlock Classes="label" Text="{local:Tr Tune}" IsVisible="{Binding CanSetTune}"/>
+                                                <ComboBox ItemsSource="{Binding TuneChoices}" SelectedItem="{Binding SelectedMedia.Options.Video.Tune}" IsVisible="{Binding CanSetTune}"/>
+                                            </StackPanel>
+                                        </Expander>
+                                        <Expander Header="{local:Tr Struktur}">
+                                            <UniformGrid Columns="2">
+                                                <StackPanel Margin="0,0,8,0">
+                                                    <TextBlock Classes="label" Text="{local:Tr GOP}"/>
+                                                    <TextBox Text="{Binding SelectedMedia.Options.Video.Gop}"/>
+                                                    <TextBlock Classes="label" Text="{local:Tr B-Frames}"/>
+                                                    <TextBox Text="{Binding SelectedMedia.Options.Video.BFrames}"/>
+                                                    <TextBlock Classes="label" Text="{local:Tr Referenzframes}"/>
+                                                    <TextBox Text="{Binding SelectedMedia.Options.Video.References}"/>
+                                                </StackPanel>
+                                                <StackPanel>
+                                                    <TextBlock Classes="label" Text="{local:Tr Maximalbitrate (kbit/s)}"/>
+                                                    <TextBox Text="{Binding SelectedMedia.Options.Video.MaxRateKbps}"/>
+                                                    <TextBlock Classes="label" Text="{local:Tr VBV-Puffer (kbit)}"/>
+                                                    <TextBox Text="{Binding SelectedMedia.Options.Video.BufferKbps}"/>
+                                                </StackPanel>
+                                            </UniformGrid>
+                                        </Expander>
+                                        <Expander Header="{local:Tr Ausführung}">
+                                            <StackPanel>
+                                                <TextBlock Classes="label" Text="{local:Tr Threads}"/>
+                                                <ComboBox ItemsSource="{x:Static vm:EditorViewModel.ThreadModes}" SelectedItem="{Binding SelectedMedia.Options.Video.ThreadMode}" ItemTemplate="{StaticResource EnumItem}"/>
+                                                <TextBox Text="{Binding SelectedMedia.Options.Video.ThreadCount}" IsVisible="{Binding SelectedMedia.Options.Video.CanSetThreadCount}"/>
+                                                <TextBox Text="{Binding SelectedMedia.Options.Video.ThreadPercent}" IsVisible="{Binding SelectedMedia.Options.Video.CanSetThreadPercent}"/>
+                                                <TextBlock Classes="label" Text="{local:Tr SVT-AV1 Tune}" IsVisible="{Binding SelectedMedia.Options.Video.IsSvtAv1}"/>
+                                                <TextBox Text="{Binding SelectedMedia.Options.Video.SvtTune}" IsVisible="{Binding SelectedMedia.Options.Video.IsSvtAv1}"/>
+                                                <TextBlock Classes="label" Text="{local:Tr Filmkorn}" IsVisible="{Binding SelectedMedia.Options.Video.IsSvtAv1}"/>
+                                                <TextBox Text="{Binding SelectedMedia.Options.Video.SvtFilmGrain}" IsVisible="{Binding SelectedMedia.Options.Video.IsSvtAv1}"/>
+                                                <TextBlock Classes="label" Text="{local:Tr Deblocking}" IsVisible="{Binding SelectedMedia.Options.Video.IsSvtAv1}"/>
+                                                <TextBox Text="{Binding SelectedMedia.Options.Video.SvtDeblocking}" IsVisible="{Binding SelectedMedia.Options.Video.IsSvtAv1}"/>
+                                                <TextBlock Classes="label" Text="{local:Tr Parallelität}" IsVisible="{Binding SelectedMedia.Options.Video.IsSvtAv1}"/>
+                                                <TextBox Text="{Binding SelectedMedia.Options.Video.SvtParallelism}" IsVisible="{Binding SelectedMedia.Options.Video.IsSvtAv1}"/>
+                                                <CheckBox Content="{local:Tr CUDA-Decodierung}" IsChecked="{Binding SelectedMedia.Options.Video.CudaDecode}" IsVisible="{Binding SelectedMedia.Options.Video.IsNvenc}"/>
+                                                <CheckBox Content="{local:Tr CUDA-Skalierung}" IsChecked="{Binding SelectedMedia.Options.Video.CudaScale}" IsVisible="{Binding SelectedMedia.Options.Video.IsNvenc}"/>
+                                                <TextBlock Classes="label" Text="{local:Tr GPU-Index}" IsVisible="{Binding SelectedMedia.Options.Video.IsNvenc}"/>
+                                                <TextBox Text="{Binding SelectedMedia.Options.Video.GpuIndex}" IsVisible="{Binding SelectedMedia.Options.Video.IsNvenc}"/>
+                                                <Button x:Name="ExpertButton" Content="{Binding ExpertLabel}" Command="{Binding ExpertOptionsCommand}"/>
+                                            </StackPanel>
+                                        </Expander>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </TabItem>
+                            <TabItem x:Name="AudioSettingsTab" Header="{Binding AudioHeading}">
+                                <ScrollViewer>
+                                    <StackPanel Margin="4">
+                                        <TextBlock Classes="section" Text="{Binding AudioHeading}"/>
+                                        <TextBlock Classes="muted" Text="{local:Tr Text='Jede Tonspur behält Aktion, Encoder und Bitrate.'}"/>
+                                        <ContentControl x:Name="AudioHost">
+                                            <ItemsControl ItemsSource="{Binding AudioTracks}">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <UniformGrid Columns="2"/>
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate x:DataType="core:AudioTrackOptions" x:CompileBindings="False">
+                                                        <Expander Header="{Binding SourceSummary}" Margin="0,0,8,0">
+                                                            <StackPanel>
+                                                                <TextBlock Classes="label" Text="{local:Tr Aktion}"/>
+                                                                <ComboBox ItemsSource="{x:Static vm:EditorViewModel.AudioActions}" SelectedItem="{Binding Action}" ItemTemplate="{StaticResource EnumItem}"/>
+                                                                <TextBlock Classes="label" Text="{Binding Encoder}" IsVisible="{Binding CanEncode}"/>
+                                                                <ComboBox ItemsSource="{x:Static vm:EditorViewModel.AudioEncoders}" SelectedItem="{Binding Encoder}" IsVisible="{Binding CanEncode}"/>
+                                                                <TextBlock Classes="label" Text="{local:Tr Bitrate (kbit/s)}" IsVisible="{Binding CanSetBitrate}"/>
+                                                                <TextBox Text="{Binding BitRateKbps}" IsVisible="{Binding CanSetBitrate}"/>
+                                                                <TextBlock Classes="muted" Text="{Binding QualityDescription}" IsVisible="{Binding CanEncode}"/>
+                                                                <Expander Header="{local:Tr Weitere Audiooptionen}" IsVisible="{Binding CanEncode}">
+                                                                    <StackPanel>
+                                                                        <TextBlock Classes="label" Text="{local:Tr Kompression}"/>
+                                                                        <TextBox Text="{Binding CompressionLevel}"/>
+                                                                        <TextBlock Classes="label" Text="{local:Tr Kanäle}"/>
+                                                                        <TextBox Text="{Binding Channels}"/>
+                                                                        <TextBlock Classes="label" Text="{local:Tr Abtastrate}"/>
+                                                                        <TextBox Text="{Binding SampleRate}"/>
+                                                                        <TextBlock Classes="label" Text="{local:Tr Kanalbelegung}"/>
+                                                                        <TextBox Text="{Binding ChannelLayout}"/>
+                                                                        <TextBlock Classes="label" Text="{local:Tr Bitratenmodus}"/>
+                                                                        <ComboBox ItemsSource="{x:Static vm:EditorViewModel.AudioModes}" SelectedItem="{Binding BitrateMode}"/>
+                                                                        <TextBlock Classes="label" Text="{local:Tr Anwendung}"/>
+                                                                        <ComboBox ItemsSource="{x:Static vm:EditorViewModel.AudioApplications}" SelectedItem="{Binding Application}"/>
+                                                                    </StackPanel>
+                                                                </Expander>
+                                                                <TextBlock Classes="label" Text="{local:Tr Sprache}"/>
+                                                                <TextBox Text="{Binding Language}"/>
+                                                                <TextBlock Classes="label" Text="{local:Tr Titel}"/>
+                                                                <TextBox Text="{Binding Title}"/>
+                                                                <CheckBox Content="{local:Tr Standardspur}" IsChecked="{Binding IsDefault}"/>
+                                                            </StackPanel>
+                                                        </Expander>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </ContentControl>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </TabItem>
+                            <TabItem x:Name="SubtitleSettingsTab" Header="{Binding SubtitleHeading}">
+                                <ScrollViewer>
+                                    <StackPanel Margin="4">
+                                        <TextBlock Classes="section" Text="{Binding SubtitleHeading}"/>
+                                        <Button x:Name="ExportSubtitleButton" Content="{Binding ExportSubtitleLabel}" Command="{Binding ExportSubtitleCommand}"/>
+                                        <ItemsControl ItemsSource="{Binding SubtitleTracks}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <UniformGrid Columns="2"/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="core:SubtitleTrackOptions" x:CompileBindings="False">
+                                                    <Expander Header="{Binding SourceSummary}" Margin="0,0,8,0">
+                                                        <StackPanel>
+                                                            <TextBlock Classes="label" Text="{local:Tr Aktion}"/>
+                                                            <ComboBox ItemsSource="{x:Static vm:EditorViewModel.SubtitleActions}" SelectedItem="{Binding Action}" ItemTemplate="{StaticResource EnumItem}"/>
+                                                            <TextBlock Classes="label" Text="{local:Tr Encoder}"/>
+                                                            <ComboBox ItemsSource="{x:Static vm:EditorViewModel.SubtitleEncoderChoices}" SelectedItem="{Binding Encoder}"/>
+                                                            <TextBlock Classes="label" Text="{local:Tr Sprache}"/>
+                                                            <TextBox Text="{Binding Language}"/>
+                                                            <TextBlock Classes="label" Text="{local:Tr Titel}"/>
+                                                            <TextBox Text="{Binding Title}"/>
+                                                            <CheckBox Content="{local:Tr Standardspur}" IsChecked="{Binding IsDefault}"/>
+                                                            <CheckBox Content="{local:Tr Erzwungen}" IsChecked="{Binding Forced}"/>
+                                                            <Button Content="{local:Tr Untertitel exportieren}" Click="ExportTrackClick"/>
+                                                        </StackPanel>
+                                                    </Expander>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </TabItem>
+                            <TabItem x:Name="OutputSettingsTab" Header="{local:Tr Ausgabe}">
+                                <ScrollViewer>
+                                    <StackPanel Margin="4" IsEnabled="{Binding HasEditableMedia}">
+                                        <TextBlock Classes="section" Text="{local:Tr Ausgabe}"/>
+                                        <TextBlock Classes="label" Text="{Binding ContainerLabel}"/>
+                                        <ComboBox ItemsSource="{x:Static vm:EditorViewModel.Containers}" SelectedItem="{Binding SelectedMedia.Options.Container}"/>
+                                        <TextBlock Classes="label" Text="{local:Tr Ausgabeordner}"/>
+                                        <TextBox Text="{Binding SelectedMedia.Options.OutputDirectory}"/>
+                                        <Button Content="{local:Tr Ordner wählen}" Command="{Binding SelectOutputFolderCommand}"/>
+                                        <TextBlock Classes="label" Text="{local:Tr Dateinamensmuster}"/>
+                                        <TextBox Text="{Binding SelectedMedia.Options.FileNamePattern}" IsEnabled="{Binding CanEditFileNamePattern}"/>
+                                        <TextBlock Classes="muted" Text="{}{name} · {codec} · {encoder} · {resolution} · {height} · {width} · {quality}"/>
+                                        <TextBlock Classes="label" Text="{Binding FileNameHeading}"/>
+                                        <TextBox x:Name="FileNamePreviewText" Text="{Binding OutputFileNamePreview}" IsReadOnly="True"/>
+                                        <CheckBox Content="{local:Tr Nach dem Encode analysieren}" IsChecked="{Binding SelectedMedia.Options.AutoAnalyze}"/>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </TabItem>
+                        </TabControl>
+                    </TabItem>
+                    <TabItem x:Name="MediaInfoTab" Header="{Binding MediaHeading}">
+                        <TextBox x:Name="MediaDetailsText" Classes="mono" Text="{Binding MediaDetails}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"/>
+                    </TabItem>
+                    <TabItem x:Name="LargeCommandTab" Header="{Binding CommandHeading}">
+                        <DockPanel Margin="4">
+                            <WrapPanel DockPanel.Dock="Bottom">
+                                <Button Content="{local:Tr Befehl kopieren}" Click="CopyCommandClick"/>
+                                <Button Content="{local:Tr Jobprotokoll}" Command="{Binding ShowJobLogCommand}"/>
+                            </WrapPanel>
+                            <TextBox x:Name="CommandPreviewText" Classes="mono" Text="{Binding CommandText}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"/>
+                        </DockPanel>
+                    </TabItem>
+                    <TabItem x:Name="LogTab" Header="{local:Tr Protokoll}">
+                        <DockPanel Margin="4">
+                            <Button DockPanel.Dock="Bottom" Content="{local:Tr Protokollordner öffnen}" Command="{Binding OpenLogsCommand}"/>
+                            <TextBox Classes="mono" Text="{Binding LogText}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"/>
+                        </DockPanel>
+                    </TabItem>
+                </TabControl>
+                <Border x:Name="ConversionSummaryCard" Grid.Row="1" Background="{DynamicResource Surface}" CornerRadius="6" Padding="12,8" Margin="0,6,0,0" IsVisible="False">
+                    <Grid ColumnDefinitions="3*,2*">
+                        <StackPanel>
+                            <TextBlock Classes="accent" FontSize="10" Text="{local:Tr Konvertierung}"/>
+                            <TextBlock Text="{Binding Conversion}" FontSize="13" FontWeight="SemiBold"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Classes="muted" Text="{Binding SelectedPreset.Name}"/>
+                            <TextBlock Classes="muted" Text="{Binding EstimateText}"/>
+                        </StackPanel>
                     </Grid>
                 </Border>
-                <WrapPanel Grid.Row="1">
-                    <Button x:Name="PlayButton" Content="{Binding PlayLabel}" Command="{Binding PlayCommand}" Margin="0,0,6,6" Padding="10,4"/>
-                    <Button x:Name="PauseButton" Content="{Binding PauseLabel}" Command="{Binding PauseCommand}" Margin="0,0,6,6" Padding="10,4"/>
-                    <Button x:Name="StopButton" Content="{Binding StopLabel}" Command="{Binding StopPlaybackCommand}" Margin="0,0,6,6" Padding="10,4"/>
-                    <Button Content="{Binding PreviewLabel}" Command="{Binding ShowPreviewCommand}" Margin="0,0,6,6" Padding="10,4"/>
-                    <Button x:Name="PreviousFrameButton" Content="{Binding PreviousFrameLabel}" Command="{Binding PreviousFrameCommand}" Margin="0,0,6,6" Padding="10,4"/>
-                    <Button x:Name="NextFrameButton" Content="{Binding NextFrameLabel}" Command="{Binding NextFrameCommand}" Margin="0,0,6,6" Padding="10,4"/>
-                    <TextBlock Text="s" VerticalAlignment="Center" Margin="8,0,4,0" Foreground="{DynamicResource StudioMuted}"/>
-                    <NumericUpDown Value="{Binding PreviewSeconds}" Minimum="0" Increment="0.04" Width="110" FormatString="0.000"/>
-                </WrapPanel>
-                <Border Grid.Row="2" Background="{DynamicResource StudioSurface}" BorderBrush="{DynamicResource StudioBorder}" BorderThickness="1" CornerRadius="8" Padding="10">
-                    <DockPanel>
-                        <TextBlock DockPanel.Dock="Top" Text="{Binding CutHeading}" FontWeight="SemiBold" Margin="0,0,0,6"/>
-                        <TextBlock DockPanel.Dock="Top" Text="{Binding CutSummary}" TextWrapping="Wrap" Foreground="{DynamicResource StudioMuted}" Margin="0,0,0,6"/>
-                        <WrapPanel DockPanel.Dock="Top">
-                            <Button Content="{Binding CutStartLabel}" Command="{Binding MarkCutStartCommand}" Margin="0,0,6,6" Padding="8,4"/>
-                            <Button Content="{Binding CutEndLabel}" Command="{Binding MarkCutEndCommand}" Margin="0,0,6,6" Padding="8,4"/>
-                            <Button Content="{Binding RemoveLabel}" Command="{Binding RemoveCutCommand}" Margin="0,0,6,6" Padding="8,4"/>
-                            <Button Content="{Binding ClearCutsLabel}" Command="{Binding ClearCutsCommand}" Margin="0,0,6,6" Padding="8,4"/>
-                        </WrapPanel>
-                        <ListBox ItemsSource="{Binding CutEntries}" SelectedItem="{Binding SelectedCut}" MaxHeight="90" Background="Transparent" BorderThickness="0">
-                            <ListBox.ItemTemplate>
-                                <DataTemplate x:DataType="core:CutRegion">
-                                    <TextBlock Text="{Binding Start.Seconds, StringFormat='{}{0:0.000} s'}"/>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
-                    </DockPanel>
+                <Border x:Name="ValidationSummaryCard" Grid.Row="2" Margin="0,6,0,0" Padding="10,4" MaxHeight="100" IsVisible="False">
+                    <ScrollViewer>
+                        <TextBlock Text="{Binding ValidationText}" Foreground="{DynamicResource Warning}" FontSize="12"/>
+                    </ScrollViewer>
                 </Border>
             </Grid>
-            <TabControl Grid.Column="2">
-                <TabItem Header="{Binding EncodeHeading}">
-                    <ScrollViewer>
-                        <StackPanel Spacing="6" Margin="8" IsEnabled="{Binding HasEditableMedia}">
-                            <TextBlock Text="{Binding EncoderInfo}" TextWrapping="Wrap" Foreground="{DynamicResource StudioMuted}"/>
-                            <TextBlock Text="{Binding EncoderLabel}"/>
-                            <ComboBox ItemsSource="{Binding VideoEncoders}" SelectedItem="{Binding SelectedEncoder}"/>
-                            <TextBlock Text="{Binding ContainerLabel}"/>
-                            <ComboBox ItemsSource="{x:Static vm:EditorViewModel.Containers}" SelectedItem="{Binding SelectedContainer}"/>
-                            <TextBlock Text="{Binding QualityLabel}"/>
-                            <NumericUpDown Value="{Binding VideoQuality}" Minimum="0" Maximum="63" Increment="0.5" FormatString="0.##"/>
-                            <TextBlock Text="{Binding PresetLabel}" IsVisible="{Binding CanSetPreset}"/>
-                            <ComboBox ItemsSource="{Binding PresetChoices}" SelectedItem="{Binding VideoPreset}" IsVisible="{Binding CanSetPreset}"/>
-                            <TextBlock Text="{Binding FileNameHeading}" FontWeight="SemiBold"/>
-                            <TextBlock x:Name="FileNamePreviewText" Text="{Binding OutputFileNamePreview}" TextWrapping="Wrap"/>
-                            <TextBlock Text="{Binding Conversion}" TextWrapping="Wrap" Foreground="{DynamicResource StudioMuted}"/>
-                            <Button x:Name="ExpertButton" Content="{Binding ExpertLabel}" Command="{Binding ExpertOptionsCommand}" HorizontalAlignment="Left" Padding="8,4"/>
-                            <TextBlock Text="{Binding TestEncodeLabel}"/>
-                            <NumericUpDown Value="{Binding TestSeconds}" Minimum="0.1" Maximum="120" Increment="1" FormatString="0.#" Width="120"/>
-                            <Button x:Name="TestEncodeButton" Content="{Binding TestEncodeLabel}" Command="{Binding TestEncodeCommand}" HorizontalAlignment="Left" Padding="8,4"/>
-                            <TextBlock Text="{Binding AudioHeading}" FontWeight="SemiBold"/>
-                            <ContentControl x:Name="AudioHost"/>
-                            <TextBlock Text="{Binding SubtitleHeading}" FontWeight="SemiBold"/>
-                            <ListBox ItemsSource="{Binding SubtitleTracks}" SelectedItem="{Binding SelectedSubtitle}" MaxHeight="90" Background="Transparent">
-                                <ListBox.ItemTemplate>
-                                    <DataTemplate x:DataType="core:SubtitleTrackOptions">
-                                        <TextBlock Text="{Binding SourceSummary}"/>
-                                    </DataTemplate>
-                                </ListBox.ItemTemplate>
-                            </ListBox>
-                            <Button x:Name="ExportSubtitleButton" Content="{Binding ExportSubtitleLabel}" Command="{Binding ExportSubtitleCommand}" HorizontalAlignment="Left" Padding="8,4"/>
-                        </StackPanel>
-                    </ScrollViewer>
-                </TabItem>
-                <TabItem Header="{Binding FilterHeading}">
-                    <ScrollViewer>
-                        <StackPanel Spacing="6" Margin="8" IsEnabled="{Binding HasEditableMedia}">
-                            <TextBlock Text="{Binding WidthHeightLabel}"/>
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <NumericUpDown Value="{Binding OutputWidth}" Minimum="0" Maximum="7680" Increment="2" Width="120"/>
-                                <NumericUpDown Value="{Binding OutputHeight}" Minimum="0" Maximum="4320" Increment="2" Width="120"/>
-                            </StackPanel>
-                            <CheckBox Content="{Binding CropLabel}" IsChecked="{Binding CropEnabled}"/>
-                            <Button Content="{Binding DetectCropLabel}" Command="{Binding DetectCropCommand}" HorizontalAlignment="Left" Padding="8,4"/>
-                        </StackPanel>
-                    </ScrollViewer>
-                </TabItem>
-                <TabItem Header="{Binding PresetsHeading}">
-                    <StackPanel Spacing="6" Margin="8">
-                        <ComboBox ItemsSource="{Binding Presets}" SelectedItem="{Binding SelectedPreset}">
-                            <ComboBox.ItemTemplate>
-                                <DataTemplate x:DataType="core:Preset">
-                                    <TextBlock Text="{Binding Name}"/>
-                                </DataTemplate>
-                            </ComboBox.ItemTemplate>
-                        </ComboBox>
-                        <WrapPanel>
-                            <Button Content="{Binding SavePresetLabel}" Command="{Binding SavePresetCommand}" Margin="0,0,6,6" Padding="8,4"/>
-                            <Button Content="{Binding DeletePresetLabel}" Command="{Binding DeletePresetCommand}" Margin="0,0,6,6" Padding="8,4"/>
-                            <Button Content="{Binding ImportPresetLabel}" Command="{Binding ImportPresetCommand}" Margin="0,0,6,6" Padding="8,4"/>
-                            <Button Content="{Binding ExportPresetLabel}" Command="{Binding ExportPresetCommand}" Margin="0,0,6,6" Padding="8,4"/>
-                        </WrapPanel>
-                    </StackPanel>
-                </TabItem>
-                <TabItem Header="{Binding QueueHeading}">
-                    <DockPanel Margin="8">
-                        <WrapPanel DockPanel.Dock="Top">
-                            <Button x:Name="AddQueueButton" Content="{Binding AddQueueLabel}" Command="{Binding AddQueueCommand}" Margin="0,0,6,6" Padding="8,4"/>
-                            <Button x:Name="StartQueueButton" Content="{Binding StartQueueLabel}" Command="{Binding StartQueueCommand}" Margin="0,0,6,6" Padding="8,4"/>
-                            <Button Content="{Binding StopQueueLabel}" Command="{Binding StopQueueCommand}" Margin="0,0,6,6" Padding="8,4"/>
-                            <Button Content="{Binding CancelJobLabel}" Command="{Binding CancelJobCommand}" Margin="0,0,6,6" Padding="8,4"/>
-                            <Button Content="{Binding RemoveLabel}" Command="{Binding RemoveJobCommand}" Margin="0,0,6,6" Padding="8,4"/>
-                            <Button x:Name="AnalyzeButton" Content="{Binding AnalyzeLabel}" Command="{Binding AnalyzeQualityCommand}" Margin="0,0,6,6" Padding="8,4"/>
-                            <Button x:Name="CancelAnalysisButton" Content="{Binding CancelAnalysisLabel}" Command="{Binding CancelAnalysisCommand}" Margin="0,0,6,6" Padding="8,4"/>
-                            <Button x:Name="CompareButton" Content="{Binding CompareLabel}" Command="{Binding CompareEncodesCommand}" Margin="0,0,6,6" Padding="8,4"/>
-                            <Button x:Name="ResultsButton" Content="{Binding ResultsLabel}" Command="{Binding ShowResultsCommand}" Margin="0,0,6,6" Padding="8,4"/>
-                        </WrapPanel>
-                        <TextBlock DockPanel.Dock="Top" Text="{Binding QueueSummary}" Foreground="{DynamicResource StudioMuted}" Margin="0,0,0,6"/>
-                        <Grid ColumnDefinitions="*,*">
-                            <ListBox x:Name="QueueList" ItemsSource="{Binding Jobs}" SelectedItem="{Binding SelectedJob}" Background="Transparent" BorderThickness="0">
-                                <ListBox.ItemTemplate>
-                                    <DataTemplate x:DataType="core:EncodingJob">
-                                        <StackPanel Margin="0,4">
-                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-                                            <TextBlock Text="{Binding DisplayStatus}" Foreground="{DynamicResource StudioMuted}"/>
-                                        </StackPanel>
-                                    </DataTemplate>
-                                </ListBox.ItemTemplate>
-                            </ListBox>
-                            <ScrollViewer Grid.Column="1">
-                                <StackPanel Spacing="6">
-                                    <TextBlock Text="{Binding JobHeading}" FontWeight="SemiBold"/>
-                                    <TextBlock x:Name="JobDetailsText" Text="{Binding SelectedJobDetails}" TextWrapping="Wrap"/>
-                                    <TextBlock Text="{Binding CommandHeading}" FontWeight="SemiBold"/>
-                                    <TextBlock x:Name="CommandPreviewText" Text="{Binding CommandText}" TextWrapping="Wrap"/>
-                                    <TextBlock Text="{Binding ValidationText}" TextWrapping="Wrap" Foreground="{DynamicResource StudioMuted}"/>
-                                </StackPanel>
-                            </ScrollViewer>
-                        </Grid>
-                    </DockPanel>
-                </TabItem>
-            </TabControl>
         </Grid>
-        <StackPanel Grid.Row="3" Spacing="2">
-            <TextBlock Text="{Binding HardwareHeading}" FontWeight="SemiBold"/>
-            <TextBlock x:Name="HardwareTextBlock" Text="{Binding HardwareText}" TextWrapping="Wrap"/>
-            <TextBlock Text="{Binding DistributionNote}" TextWrapping="Wrap" Foreground="{DynamicResource StudioMuted}"/>
-            <TextBlock x:Name="StatusText" Text="{Binding StatusText}" TextWrapping="Wrap"/>
-            <TextBlock x:Name="MediaDetailsText" Text="{Binding MediaDetails}" TextWrapping="Wrap" MaxHeight="72" Foreground="{DynamicResource StudioMuted}"/>
-        </StackPanel>
+
+        <GridSplitter Grid.Row="3" ResizeDirection="Rows" Height="7" Background="Transparent"/>
+
+        <Grid x:Name="QueueRegion" Grid.Row="4" MinHeight="210" ColumnDefinitions="*,7,405">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Top">
+                    <TextBlock Text="{Binding QueueSummary}" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <WrapPanel>
+                        <Button x:Name="StartQueueButton" Classes="primary" Content="{local:Tr Queue starten}" Command="{Binding StartQueueCommand}"/>
+                        <Button Content="{local:Tr Queue stoppen}" Command="{Binding StopQueueCommand}"/>
+                        <Button Content="{local:Tr Auswahl starten}" Click="StartSelectedClick"/>
+                        <Button Content="{Binding CancelJobLabel}" Command="{Binding CancelJobCommand}"/>
+                        <Button Content="{local:Tr Zurückstellen}" Command="{Binding DeferJobCommand}"/>
+                        <Button Content="{local:Tr Job bearbeiten}" Command="{Binding EditJobCommand}"/>
+                        <Button Content="{Binding RemoveLabel}" Command="{Binding RemoveJobCommand}"/>
+                        <StackPanel Orientation="Horizontal" Spacing="6" Margin="8,0,0,0">
+                            <TextBlock Classes="muted" Text="{local:Tr Jobs}" VerticalAlignment="Center"/>
+                            <ComboBox Width="70" ItemsSource="{x:Static vm:EditorViewModel.ParallelJobChoices}" SelectedItem="{Binding ParallelJobLimit}"/>
+                            <TextBlock Classes="muted" Text="{local:Tr GPU}" VerticalAlignment="Center"/>
+                            <ComboBox Width="70" ItemsSource="{x:Static vm:EditorViewModel.ParallelGpuJobChoices}" SelectedItem="{Binding ParallelGpuJobLimit}"/>
+                            <CheckBox Content="{local:Tr Effizienz}" IsChecked="{Binding EncodeEfficiencyMode}" ToolTip.Tip="{local:Tr Text='Niedrigere Prozesspriorität, damit der Rechner benutzbar bleibt.'}"/>
+                        </StackPanel>
+                    </WrapPanel>
+                </StackPanel>
+                <ProgressBar DockPanel.Dock="Top" Minimum="0" Maximum="100" Value="{Binding QueueProgress}" Margin="0,4,8,6"/>
+                <DataGrid x:Name="QueueGrid" ItemsSource="{Binding Jobs}" SelectedItem="{Binding SelectedJob}"
+                          AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Extended" GridLinesVisibility="None">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*"/>
+                        <DataGridTextColumn Header="Preset" Binding="{Binding PresetName}" Width="140"/>
+                        <DataGridTextColumn Header="Status" Binding="{Binding DisplayStatus}" Width="110"/>
+                        <DataGridTemplateColumn Header="Fortschritt" Width="120">
+                            <DataTemplate x:DataType="core:EncodingJob">
+                                <Grid>
+                                    <ProgressBar Minimum="0" Maximum="100" Value="{Binding Progress}" VerticalAlignment="Center" Margin="0,0,36,0"/>
+                                    <TextBlock Text="{Binding Progress, StringFormat='{}{0:0}%'}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                </Grid>
+                            </DataTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTextColumn Header="Tempo" Binding="{Binding Speed}" Width="70"/>
+                        <DataGridTextColumn Header="FPS" Binding="{Binding Fps}" Width="58"/>
+                        <DataGridTextColumn Header="Rest" Binding="{Binding Remaining}" Width="80"/>
+                    </DataGrid.Columns>
+                    <DataGrid.RowDetailsTemplate>
+                        <DataTemplate x:DataType="core:EncodingJob">
+                            <TextBlock Text="{Binding Conversion}" Margin="8,4"/>
+                        </DataTemplate>
+                    </DataGrid.RowDetailsTemplate>
+                </DataGrid>
+            </DockPanel>
+            <GridSplitter Grid.Column="1" ResizeDirection="Columns" Width="7" Background="Transparent"/>
+            <DockPanel Grid.Column="2" MinWidth="300">
+                <WrapPanel DockPanel.Dock="Top">
+                    <Button x:Name="AnalyzeButton" Content="{Binding AnalyzeLabel}" Command="{Binding AnalyzeQualityCommand}"/>
+                    <Button Content="{local:Tr Analyse zeigen}" Command="{Binding ShowAnalysisCommand}"/>
+                    <Button x:Name="CompareButton" Classes="primary" Content="{Binding CompareLabel}" Command="{Binding CompareEncodesCommand}"/>
+                    <Button x:Name="ResultsButton" Content="{Binding ResultsLabel}" Command="{Binding CompareResultsCommand}"/>
+                    <Button Content="{local:Tr Ausgabe öffnen}" Command="{Binding OpenOutputCommand}"/>
+                    <Button Content="{local:Tr Jobprotokoll}" Command="{Binding ShowJobLogCommand}"/>
+                    <Button x:Name="CancelAnalysisButton" Content="{Binding CancelAnalysisLabel}" Command="{Binding CancelAnalysisCommand}" IsVisible="{Binding SelectedJob.IsAnalyzing}"/>
+                </WrapPanel>
+                <Border DockPanel.Dock="Top" Margin="0,6" Padding="8" Background="{DynamicResource Surface}" CornerRadius="5"
+                        IsVisible="{Binding SelectedJob.HasAnalysisStatus}">
+                    <StackPanel>
+                        <TextBlock Text="{Binding SelectedJob.AnalysisStatus}"/>
+                        <ProgressBar Minimum="0" Maximum="100" Value="{Binding SelectedJob.AnalysisProgress}" IsIndeterminate="{Binding SelectedJob.IsAnalysisIndeterminate}"/>
+                        <TextBlock Classes="muted" Text="{Binding SelectedJob.AnalysisDetails}"/>
+                    </StackPanel>
+                </Border>
+                <ScrollViewer>
+                    <TextBlock x:Name="JobDetailsText" Text="{Binding SelectedJobDetails}"/>
+                </ScrollViewer>
+            </DockPanel>
+        </Grid>
+
+        <Border Grid.Row="5" Padding="0,8,0,0">
+            <StackPanel>
+                <TextBlock x:Name="StatusText" Text="{Binding StatusText}" Foreground="{DynamicResource Accent}" FontSize="12" MaxHeight="45"/>
+                <TextBlock Classes="muted" Text="{Binding DistributionNote}"/>
+            </StackPanel>
+        </Border>
     </Grid>
 </Window>
