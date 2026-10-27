@@ -1207,7 +1207,7 @@ report_runtime() {
     record WARN "Wayland libraries" "libwayland-client or libwayland-cursor is missing. X11 or XWayland can still start the app."
   fi
   if command -v ffmpeg >/dev/null 2>&1 && command -v ffprobe >/dev/null 2>&1; then
-    record PASS "FFmpeg" "$(command -v ffmpeg) — $(ffmpeg -version 2>&1 | head -n 1 || true)"
+    record PASS "FFmpeg" "$(command -v ffmpeg) — $(ffmpeg -version 2>/dev/null | head -n 1 || true)"
   else
     record WARN "FFmpeg" "ffmpeg and ffprobe are not both on PATH. The app can download a static build on glibc >= 2.28."
     if [[ "$PM" == dnf ]]; then
