@@ -6,3 +6,4 @@ artifacts/
 TestResults/
 *.user
 pixelpeeker-linux-check.log
+pixelpeeker-linux-setup.log

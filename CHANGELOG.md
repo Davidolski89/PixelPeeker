@@ -1,5 +1,9 @@
 # Änderungen
 
+## 0.10.44 – 27. Oktober 2026
+
+- `scripts/setup-linux.sh` richtet PixelPeeker auf einem frischen Linux-Rechner ein. Es klont `main` nach `~/PixelPeeker` oder aktualisiert ein vorhandenes Checkout mit `git pull --ff-only`, installiert fehlende Pakete nach einer Rückfrage (`--yes`, `--no-install`) und veröffentlicht eine selbstständige Avalonia-Build unter `artifacts/portable-linux-x64` bzw. `artifacts/portable-linux-arm64`. Fedora 44 ist das Ziel; apt, pacman und zypper werden ebenfalls bedient. Das .NET SDK kommt aus `dotnet-sdk-10.0` oder, wenn das Paket fehlt, über Microsofts `dotnet-install.sh` nach `~/.dotnet`. `ffmpeg-free` bleibt optional. Liegt `vlc-libs` in den aktivierten Fedora-Repos, wird es installiert; RPM Fusion wird nicht automatisch aktiviert und nur mit `--enable-rpmfusion` eingeschaltet. `--test`, `--run` und `--desktop-entry` sind optional. Der Einzeiler ist `curl -fsSL https://raw.githubusercontent.com/Davidolski89/PixelPeeker/main/scripts/setup-linux.sh | bash`.
+
 ## 0.10.43 – 27. Oktober 2026
 
 - `scripts/test-linux.sh` prüft auf dem eigenen Linux-Rechner, ob PixelPeeker startet. Das Skript meldet Distribution, Architektur und glibc (dieselbe Grenze 2.28 bzw. musl wie der statische FFmpeg-Download), fehlende Avalonia-Bibliotheken, die Sitzung, dotnet, `libvlc` und ein ffmpeg/ffprobe im PATH. Es baut standardmäßig selbstständig für linux-x64 bzw. linux-arm64, führt `dotnet test` für `FFmpegStudio.Linux.slnf` aus und startet die Anwendung mit `--smoke` sowie für einige Sekunden mit Fenster. `--appimage` und `--tarball` nehmen ein CI-Artefakt. `--download-ffmpeg` lädt den statischen BtbN-GPL-Build in ein temporäres Verzeichnis, prüft SHA-256 und encodiert eine Sekunde. Es gibt kein sudo; fehlende Fedora-Pakete werden nur als `sudo dnf install ...` ausgegeben.

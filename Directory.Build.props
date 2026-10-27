@@ -4,7 +4,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
     <Deterministic>true</Deterministic>
-    <Version>0.10.43</Version>
+    <Version>0.10.44</Version>
     <Authors>PixelPeeker</Authors>
     <Product>PixelPeeker</Product>
     <PackageLicenseExpression>GPL-3.0-or-later</PackageLicenseExpression>
