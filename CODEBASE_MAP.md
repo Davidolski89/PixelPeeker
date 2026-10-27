@@ -2,7 +2,7 @@
 
 Navigation guide for small changes. Start with the feature table, then read only the relevant implementation and tests.
 Paths are relative to this project root. Source projects/namespaces retain `FFmpegStudio`; the desktop executable is `PixelPeeker.exe`.
-Verified against source on 2026-10-27 (0.10.43, Linux machine check script). Update locations when structure changes, not after every UI tweak.
+Verified against source on 2026-10-27 (0.10.44, Linux setup script). Update locations when structure changes, not after every UI tweak.
 
 ## 1. Architecture overview
 
@@ -36,6 +36,7 @@ Verified against source on 2026-10-27 (0.10.43, Linux machine check script). Upd
 | `tools/FFmpegStudio.Verify` | Console entry point and real-FFmpeg integration suite. |
 | `Build.ps1`, `Publish.ps1`, `Publish-Linux.ps1` | Test/build entry points and portable publishing; **the publish scripts run tests by default**. `Publish.ps1` is the Windows EXE. `Publish.ps1 -Linux` delegates to `Publish-Linux.ps1`. Both support `-SkipTests` after a separate successful run against the same source. |
 | `scripts/test-linux.sh` | Local Linux machine check. Builds or accepts an AppImage/tarball, runs the Linux tests and `--smoke`, and can verify a BtbN download. Prints `sudo dnf` hints and does not run sudo. |
+| `scripts/setup-linux.sh` | Standalone Linux bootstrap. Clones or fast-forwards `main`, installs distro packages after one confirmation, and publishes `artifacts/portable-linux-x64` or `portable-linux-arm64`. Does not enable RPM Fusion unless `--enable-rpmfusion` is set. |
 | `.github/workflows/ci.yml` | Pull-request and `main` CI. Windows builds `FFmpegStudio.sln` and runs its test projects. Ubuntu builds `FFmpegStudio.Linux.slnf`, runs those tests, and smoke-starts Avalonia. A following Ubuntu job uploads the Linux tar.gz and AppImage files as workflow artifacts. It does not create a GitHub Release. |
 | `docs` | [Editing](docs/FRAME-ACCURATE-EDITING.md), [comparison](docs/ENCODE-COMPARISON.md), [languages](docs/LANGUAGES.md), [architecture](docs/ARCHITECTURE.md), [verification history](docs/STATUS.md). |
 

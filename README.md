@@ -157,6 +157,23 @@ The default run reads `/etc/os-release`, the CPU architecture and the C library 
 
 From source it runs `dotnet test FFmpegStudio.Linux.slnf` unless `--skip-tests` is set, publishes a self-contained Avalonia build for the machine's RID, runs that build with `--smoke` (initialize services and exit 0), then leaves the window open for about 12 seconds. If `xdotool` or `wmctrl` is installed it checks that a PixelPeeker window exists; otherwise it only checks that the process stayed alive. An AppImage without `libfuse.so.2` is started with `--appimage-extract-and-run` (`sudo dnf install fuse-libs` provides that library). `--download-ffmpeg` repeats the app's BtbN autobuild selection, verifies SHA-256, and runs `ffmpeg -version`, a one-second `testsrc` encode and `ffprobe` inside a temp directory that is deleted afterwards. The full log stays at `./pixelpeeker-linux-check.log`. The script exits 1 when any check is FAIL. WARN does not fail the run.
 
+### Build from source
+
+`scripts/setup-linux.sh` clones the repository onto a machine you control and publishes a self-contained Avalonia build. Fedora 44 x86_64 (KDE, Wayland) is the primary target. Debian and Ubuntu (`apt`), Arch (`pacman`) and openSUSE (`zypper`) use the same script. It asks once before installing packages. `--yes` skips the question. `--no-install` only reports what is missing.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Davidolski89/PixelPeeker/main/scripts/setup-linux.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Davidolski89/PixelPeeker/main/scripts/setup-linux.sh | bash -s -- --yes --desktop-entry
+bash scripts/setup-linux.sh --help
+bash scripts/setup-linux.sh --dir ~/PixelPeeker --branch main --test --run
+```
+
+The default directory is `~/PixelPeeker`. An existing checkout of this repository is updated with `git pull --ff-only`. The .NET SDK comes from `global.json` (10.0.x, roll forward to the latest feature band): Fedora and other distributions install `dotnet-sdk-10.0` when that package exists, and otherwise Microsoft's `dotnet-install.sh` installs it under `~/.dotnet`. The script prints the `PATH` lines for that directory. Avalonia's runtime libraries (libX11, libICE, libSM, fontconfig, freetype, the usual X extensions, libGL, libxkbcommon) are installed from the distro. Wayland client libraries and `libfuse.so.2` (`fuse-libs` on Fedora, `libfuse2` on Debian/Ubuntu) are optional.
+
+FFmpeg is optional. Fedora installs `ffmpeg-free` when `ffmpeg` and `ffprobe` are missing. The application can still download a static GPL build on glibc 2.28 or newer. RPM Fusion's fuller `ffmpeg` package is not installed; the script prints `sudo dnf swap ffmpeg-free ffmpeg --allowerasing` for that choice. `vlc-libs` is installed when it is already in the enabled Fedora repositories (that is the case on Fedora 44). RPM Fusion is not enabled automatically. `--enable-rpmfusion` enables the Free repository and installs `vlc-libs` when the package is not already available. Playback also uses the distro libvlc packages on apt, pacman and zypper.
+
+`--test` runs `dotnet test FFmpegStudio.Linux.slnf`. The publish matches `Publish-Linux.ps1`: `~/PixelPeeker/artifacts/portable-linux-x64/PixelPeeker.Avalonia` for linux-x64, or `portable-linux-arm64` for linux-arm64. `--run` launches that binary when `DISPLAY` or `WAYLAND_DISPLAY` is set. `--desktop-entry` writes `~/.local/share/applications/pixelpeeker.desktop` and a hicolor icon so KDE can show it. The log is `./pixelpeeker-linux-setup.log`. The script exits 1 when a required step fails.
+
 The app references CommunityToolkit.Mvvm (MIT), Microsoft.Extensions.DependencyInjection (MIT), Microsoft.Data.Sqlite (MIT), SharpCompress (MIT) and SQLitePCLRaw (Apache 2.0; SQLite engine code is public domain). The portable publish includes the applicable runtime licenses and third-party notices in `licenses/`; see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). xUnit (Apache 2.0) is a development and test dependency and is not part of the desktop app. Restored direct and transitive dependencies are listed by NuGet with dotnet list package --include-transitive.
 
 ## Tests

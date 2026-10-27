@@ -215,6 +215,7 @@ glibc_at_least_228() {
   return 1
 }
 
+# Fedora package names stay aligned with scripts/setup-linux.sh.
 fedora_package_for() {
   case "$1" in
     libX11.so.6) printf '%s' libX11 ;;
