@@ -1,7 +1,10 @@
 using System.Globalization;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
+using Avalonia.Data;
 using Avalonia.Data.Converters;
+using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
@@ -34,6 +37,8 @@ internal static class PreviewBitmaps
 
 public static class StudioDialogs
 {
+    public static Action<Window>? OpenedPreview { get; set; }
+
     public static async Task<AppSettings?> EditSettingsAsync(Window owner, AppSettings draft, MediaInfo? media = null, EncodingOptions? options = null)
     {
         var originalTheme = draft.ThemeId;
@@ -276,12 +281,41 @@ public static class StudioDialogs
         close.Click += (_, _) => dialog.Close();
         var status = new TextBlock { TextWrapping = TextWrapping.Wrap };
         status.Bind(TextBlock.TextProperty, new global::Avalonia.Data.Binding(nameof(EncodeComparisonSession.Status)) { Source = session });
+        var scrollers = new List<ScrollViewer>();
+        var syncing = false;
+        void Track(ScrollViewer source)
+        {
+            if (syncing) return;
+            syncing = true;
+            foreach (var other in scrollers)
+            {
+                if (ReferenceEquals(other, source)) continue;
+                other.Offset = source.Offset;
+            }
+            syncing = false;
+        }
+        var holdingReference = false;
+        dialog.KeyDown += (_, e) =>
+        {
+            if (e.Key != Key.Space || holdingReference || string.IsNullOrWhiteSpace(session.OriginalPath)) return;
+            holdingReference = true;
+            focusImage.Source = PreviewBitmaps.Load(session.OriginalPath);
+            focusCaption.Text = L.T("Referenz");
+            e.Handled = true;
+        };
+        dialog.KeyUp += (_, e) =>
+        {
+            if (e.Key != Key.Space || !holdingReference) return;
+            holdingReference = false;
+            ShowFrames();
+            e.Handled = true;
+        };
         var images = new Grid { ColumnDefinitions = new ColumnDefinitions("*,*,*"), ColumnSpacing = 8, MinHeight = 180 };
-        images.Children.Add(Frame(L.T("Original"), original));
-        var paneA = Frame("A", imageA);
+        images.Children.Add(Frame(L.T("Original"), original, scrollers, Track));
+        var paneA = Frame("A", imageA, scrollers, Track);
         Grid.SetColumn(paneA, 1);
         images.Children.Add(paneA);
-        var paneB = Frame("B", imageB);
+        var paneB = Frame("B", imageB, scrollers, Track);
         Grid.SetColumn(paneB, 2);
         images.Children.Add(paneB);
         var focusPane = new Border
@@ -329,19 +363,28 @@ public static class StudioDialogs
 
     public static async Task ShowAnalysisAsync(Window owner, QualityResult result)
     {
-        var dialog = Window(L.T("Qualitätsanalyse · gespeicherte Messwerte"), 900, 720, owner);
+        var dialog = Window(L.T("Qualitätsanalyse · gespeicherte Messwerte"), 1060, 820, owner);
         static string N(double? value) => value?.ToString("0.###", CultureInfo.InvariantCulture) ?? L.T("nicht verfügbar");
         var header = new TextBlock { Text = $"VMAF {N(result.Vmaf)}    SSIM {N(result.Ssim)}    PSNR {N(result.Psnr)} dB", FontSize = 18, FontWeight = FontWeight.SemiBold, TextWrapping = TextWrapping.Wrap };
-        var canvas = new Canvas { Height = 220, Background = new SolidColorBrush(Color.Parse("#10151F")) };
+        var canvas = new Canvas { Height = 160, Background = new SolidColorBrush(Color.Parse("#10151F")) };
         var metric = new ComboBox { ItemsSource = new[] { "VMAF", "SSIM", "PSNR" }, SelectedIndex = result.Vmaf.HasValue ? 0 : result.Ssim.HasValue ? 1 : 2, Width = 140 };
-        var rows = new ListBox { MaxHeight = 240 };
+        var rows = new DataGrid
+        {
+            MinHeight = 180,
+            AutoGenerateColumns = false,
+            IsReadOnly = true,
+            GridLinesVisibility = DataGridGridLinesVisibility.None,
+            HeadersVisibility = DataGridHeadersVisibility.Column,
+            RowHeight = 30
+        };
+        foreach (var (title, path) in new[] { (L.T("Zeit (s)"), nameof(QualityFrame.Seconds)), ("VMAF", nameof(QualityFrame.Vmaf)), ("SSIM", nameof(QualityFrame.Ssim)), ("PSNR (dB)", nameof(QualityFrame.Psnr)) })
+            rows.Columns.Add(new DataGridTextColumn { Header = title, Binding = new Binding(path) { StringFormat = "0.######" }, Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
         var axisNote = new TextBlock { Opacity = 0.8 };
         void Draw()
         {
             canvas.Children.Clear();
             var name = metric.SelectedItem as string ?? "VMAF";
-            var sorted = QualityChart.Sorted(result.Frames, name);
-            rows.ItemsSource = sorted.Select(frame => $"{frame.Seconds:0.000} s    VMAF {N(frame.Vmaf)}    SSIM {N(frame.Ssim)}    PSNR {N(frame.Psnr)}").ToList();
+            rows.ItemsSource = QualityChart.Sorted(result.Frames, name);
             var series = result.Frames.Select(frame => (frame.Seconds, Value: QualityChart.Value(frame, name))).Where(point => point.Value.HasValue && double.IsFinite(point.Value.Value)).ToList();
             var width = Math.Max(120, canvas.Bounds.Width);
             var height = canvas.Height;
@@ -381,28 +424,31 @@ public static class StudioDialogs
         csv.Click += async (_, _) => await Save(dialog, "Qualitaetsverlauf.csv", QualityReport.Csv(result));
         json.Click += async (_, _) => await Save(dialog, "Analyse.json", QualityReport.JsonText(result));
         close.Click += (_, _) => dialog.Close();
-        dialog.Content = new DockPanel
+        var analysisRoot = new Grid
         {
-            Margin = new global::Avalonia.Thickness(16),
+            Margin = new Thickness(16),
+            RowDefinitions = new RowDefinitions("Auto,*,Auto"),
+            RowSpacing = 8
+        };
+        analysisRoot.Children.Add(new StackPanel
+        {
+            Spacing = 8,
             Children =
             {
-                Docked(Dock.Top, new StackPanel
-                {
-                    Spacing = 8,
-                    Children =
-                    {
-                        header,
-                        new TextBlock { Text = result.Conditions, TextWrapping = TextWrapping.Wrap },
-                        metric,
-                        canvas,
-                        axisNote,
-                        new TextBlock { Text = L.T("Schwächste Frames zuerst · nach ausgewählter Metrik") + " · " + L.T("Zeit (s)") + " · VMAF · SSIM · PSNR" }
-                    }
-                }),
-                Docked(Dock.Bottom, new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { csv, json, close } }),
-                rows
+                header,
+                new TextBlock { Text = result.Conditions, TextWrapping = TextWrapping.Wrap },
+                metric,
+                canvas,
+                axisNote,
+                new TextBlock { Text = L.T("Schwächste Frames zuerst · nach ausgewählter Metrik") }
             }
-        };
+        });
+        Grid.SetRow(rows, 1);
+        analysisRoot.Children.Add(rows);
+        var analysisButtons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { csv, json, close } };
+        Grid.SetRow(analysisButtons, 2);
+        analysisRoot.Children.Add(analysisButtons);
+        dialog.Content = analysisRoot;
         dialog.Opened += (_, _) => Draw();
         await dialog.ShowDialog(owner);
     }
@@ -452,19 +498,24 @@ public static class StudioDialogs
         var dialog = Window(L.T("Encoding-Ergebnisse vergleichen"), 980, 640, owner);
         var sources = EncodingResults.Sources(jobs);
         var source = new ComboBox { ItemsSource = sources, SelectedIndex = sources.Count == 0 ? -1 : 0 };
-        var rows = new ListBox();
-        void Refresh()
+        var rows = new DataGrid
         {
-            var selected = source.SelectedItem as string;
-            var table = EncodingResults.Rows(jobs, selected);
-            rows.ItemsSource = table.Count == 0
-                ? new[] { L.T("Einen abgeschlossenen Test- oder vollständigen Encode auswählen.") }
-                : table.Select(row => string.Join("   ", new[]
-                {
-                    row.Encoder, row.Preset, row.Raster, row.Clip, row.MiB + " MiB", row.Seconds + " s", row.Speed, row.Bitrate + " kbit/s",
-                    "VMAF " + row.Vmaf, "SSIM " + row.Ssim, "PSNR " + row.Psnr
-                })).ToArray();
-        }
+            AutoGenerateColumns = false,
+            IsReadOnly = true,
+            GridLinesVisibility = DataGridGridLinesVisibility.None,
+            HeadersVisibility = DataGridHeadersVisibility.Column,
+            RowHeight = 40
+        };
+        foreach (var (title, path) in new[]
+        {
+            (L.T("Encoder"), nameof(EncodingResultRow.Encoder)), (L.T("Preset"), nameof(EncodingResultRow.Preset)),
+            (L.T("Raster"), nameof(EncodingResultRow.Raster)), (L.T("Ausschnitt (s)"), nameof(EncodingResultRow.Clip)),
+            ("MiB", nameof(EncodingResultRow.MiB)), (L.T("Dauer (s)"), nameof(EncodingResultRow.Seconds)),
+            (L.T("Tempo"), nameof(EncodingResultRow.Speed)), ("kbit/s", nameof(EncodingResultRow.Bitrate)),
+            ("VMAF", nameof(EncodingResultRow.Vmaf)), ("SSIM", nameof(EncodingResultRow.Ssim)), ("PSNR", nameof(EncodingResultRow.Psnr))
+        })
+            rows.Columns.Add(new DataGridTextColumn { Header = title, Binding = new Binding(path), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+        void Refresh() => rows.ItemsSource = EncodingResults.Rows(jobs, source.SelectedItem as string);
         source.SelectionChanged += (_, _) => Refresh();
         var close = new Button { Content = L.T("Schließen") };
         close.Click += (_, _) => dialog.Close();
@@ -480,7 +531,6 @@ public static class StudioDialogs
                     {
                         new TextBlock { Text = L.T("Ergebnisse derselben Quelldatei"), FontSize = 18, FontWeight = FontWeight.SemiBold },
                         new TextBlock { Text = L.T("Qualitätswerte nur bei gleichem Ausschnitt, Bildformat, Zeitraster und Analysebedingungen direkt vergleichen. Fehlende Werte bleiben leer."), TextWrapping = TextWrapping.Wrap },
-                        new TextBlock { Text = L.T("Encoder") + " · " + L.T("Preset") + " · " + L.T("Raster") + " · " + L.T("Ausschnitt (s)") + " · MiB · " + L.T("Dauer (s)") + " · " + L.T("Tempo") + " · kbit/s · VMAF · SSIM · PSNR", TextWrapping = TextWrapping.Wrap },
                         source
                     }
                 }),
@@ -733,17 +783,98 @@ public static class StudioDialogs
         return folders.Count == 0 ? null : folders[0].TryGetLocalPath();
     }
 
-    private static Window Window(string title, double width, double height, Window owner) => new()
+    public static Task ManageFfmpegAsync(Window owner, EditorViewModel vm)
     {
-        Title = title,
-        Width = width,
-        Height = height,
-        MinWidth = 420,
-        MinHeight = 240,
-        WindowStartupLocation = WindowStartupLocation.CenterOwner,
-        Background = owner.Background,
-        Foreground = owner.Foreground
-    };
+        var dialog = Window(L.T("FFmpeg-Verwaltung"), 760, 540, owner);
+        var version = new TextBlock { FontSize = 17 };
+        version.Bind(TextBlock.TextProperty, new Binding(nameof(EditorViewModel.InstalledVersion)) { Source = vm });
+        var status = new TextBlock { TextWrapping = TextWrapping.Wrap };
+        status.Bind(TextBlock.TextProperty, new Binding(nameof(EditorViewModel.StatusText)) { Source = vm });
+        var progress = new ProgressBar { Maximum = 100, Height = 8 };
+        progress.Bind(ProgressBar.ValueProperty, new Binding(nameof(EditorViewModel.DownloadPercent)) { Source = vm });
+        var close = new Button { Content = L.T("Schließen") };
+        close.Click += (_, _) => dialog.Close();
+        dialog.Content = new ScrollViewer
+        {
+            Content = new StackPanel
+            {
+                Margin = new Thickness(24),
+                Spacing = 8,
+                Children =
+                {
+                    new TextBlock { Text = L.T("FFmpeg"), FontSize = 23, FontWeight = FontWeight.SemiBold },
+                    new TextBlock { Text = vm.DistributionNote, TextWrapping = TextWrapping.Wrap },
+                    Label(L.T("Installiert")),
+                    version,
+                    new WrapPanel
+                    {
+                        Children =
+                        {
+                            new Button { Content = vm.CheckFfmpegLabel, Command = vm.CheckFfmpegCommand },
+                            new Button { Content = vm.InstallFfmpegLabel, Command = vm.InstallFfmpegCommand, Classes = { "primary" } },
+                            new Button { Content = vm.SystemFfmpegLabel, Command = vm.UseSystemFfmpegCommand },
+                            close
+                        }
+                    },
+                    progress,
+                    status,
+                    new TextBlock { Text = L.T("Laufende Jobs verwenden ihren gespeicherten Programmpfad. Eine neue Version wird erst nach erfolgreichem Download, Hashprüfung und Programmstart aktiviert."), FontSize = 12, TextWrapping = TextWrapping.Wrap }
+                }
+            }
+        };
+        return dialog.ShowDialog(owner);
+    }
+
+    public static async Task<string?> EditTextAsync(Window owner, string title, string initial)
+    {
+        var dialog = Window(title, 880, 760, owner);
+        var box = new TextBox { Text = initial, AcceptsReturn = true, TextWrapping = TextWrapping.NoWrap, MinHeight = 520, FontFamily = "Cascadia Mono, Consolas, DejaVu Sans Mono, monospace" };
+        string? result = null;
+        var ok = new Button { Content = L.T("OK"), Classes = { "primary" } };
+        var cancel = new Button { Content = L.T("Abbrechen") };
+        ok.Click += (_, _) => { result = box.Text; dialog.Close(); };
+        cancel.Click += (_, _) => dialog.Close();
+        dialog.Content = new DockPanel { Margin = new Thickness(16), Children = { Footer(ok, cancel), box } };
+        await dialog.ShowDialog(owner);
+        return result;
+    }
+
+    public static async Task ShowTextAsync(Window owner, string title, string text)
+    {
+        var dialog = Window(title, 880, 640, owner);
+        var close = new Button { Content = L.T("Schließen") };
+        close.Click += (_, _) => dialog.Close();
+        dialog.Content = new DockPanel
+        {
+            Margin = new Thickness(16),
+            Children =
+            {
+                Footer(close),
+                new TextBox { Text = text, IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.NoWrap, FontFamily = "Cascadia Mono, Consolas, DejaVu Sans Mono, monospace" }
+            }
+        };
+        await dialog.ShowDialog(owner);
+    }
+
+    private static Window Window(string title, double width, double height, Window owner)
+    {
+        var dialog = new Window
+        {
+            Title = title,
+            Width = width,
+            Height = height,
+            MinWidth = 420,
+            MinHeight = 240,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Background = owner.Background,
+            Foreground = owner.Foreground
+        };
+        dialog.Classes.Add("studio");
+        if (Application.Current?.TryFindResource("Bg", null, out var bg) == true && bg is IBrush brush)
+            dialog.Background = brush;
+        dialog.Opened += (_, _) => Dispatcher.UIThread.Post(() => OpenedPreview?.Invoke(dialog), DispatcherPriority.Background);
+        return dialog;
+    }
 
     private static TextBlock Label(string text) => new() { Text = text, FontWeight = FontWeight.SemiBold };
     private static TextBox Box(string text) => new() { Text = text };
@@ -768,16 +899,31 @@ public static class StudioDialogs
         return control;
     }
 
-    private static Border Frame(string title, Image image) => new()
+    private static Border Frame(string title, Image image, ICollection<ScrollViewer>? scrollers = null, Action<ScrollViewer>? scrolled = null)
     {
-        Background = new SolidColorBrush(Color.Parse("#080B10")),
-        Child = new DockPanel
+        var scroller = new ScrollViewer
         {
-            Children =
-            {
-                Docked(Dock.Top, new TextBlock { Text = title, Margin = new global::Avalonia.Thickness(6) }),
-                new Viewbox { Child = image }
-            }
+            HorizontalScrollBarVisibility = global::Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+            VerticalScrollBarVisibility = global::Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+            Content = image
+        };
+        if (scrollers is not null && scrolled is not null)
+        {
+            scrollers.Add(scroller);
+            scroller.ScrollChanged += (_, _) => scrolled(scroller);
         }
-    };
+        return new Border
+        {
+            Background = new SolidColorBrush(Color.Parse("#080B10")),
+            CornerRadius = new CornerRadius(5),
+            Child = new DockPanel
+            {
+                Children =
+                {
+                    Docked(Dock.Top, new TextBlock { Text = title, Margin = new Thickness(6) }),
+                    scroller
+                }
+            }
+        };
+    }
 }

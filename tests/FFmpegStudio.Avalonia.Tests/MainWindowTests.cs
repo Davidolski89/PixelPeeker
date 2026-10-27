@@ -50,14 +50,14 @@ public sealed class MainWindowTests
             Assert.NotNull(window.FindControl<Button>("ResultsButton"));
             Assert.NotNull(window.FindControl<Button>("PlayButton"));
             Assert.NotNull(window.FindControl<TextBlock>("HardwareTextBlock"));
-            Assert.NotNull(window.FindControl<TextBlock>("FileNamePreviewText"));
+            Assert.NotNull(window.FindControl<TextBox>("FileNamePreviewText"));
             Assert.NotNull(window.FindControl<ContentControl>("AudioHost"));
             Assert.False(string.IsNullOrWhiteSpace(ToolTip.GetTip(window.FindControl<Button>("CompareButton")!) as string));
             Assert.False(string.IsNullOrWhiteSpace(ToolTip.GetTip(window.FindControl<Button>("OpenFileButton")!) as string));
             var file = Path.Combine(root, "clip.mkv");
             await File.WriteAllBytesAsync(file, [9, 8, 7, 6]);
             await vm.ImportPathsAsync([file]);
-            var details = window.FindControl<TextBlock>("MediaDetailsText");
+            var details = window.FindControl<TextBox>("MediaDetailsText");
             Assert.NotNull(details);
             Assert.Contains("clip.mkv", details!.Text);
             Assert.DoesNotContain("h264", details.Text);
