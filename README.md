@@ -139,6 +139,24 @@ FFmpeg is not inside the package either. On first use, when automatic install is
 
 `Publish-Linux.ps1` runs the Linux tests unless `-SkipTests` is passed, then starts the x64 tarball and the x64 AppImage with `--smoke` under `xvfb-run` when that command exists. An arm64 package is not executed on an x64 machine. This is a local or CI artifact, not a GitHub Release.
 
+### Check a Linux machine
+
+`scripts/test-linux.sh` is for a machine you control, such as Fedora 44 x86_64. It does not call sudo. From a checkout:
+
+```bash
+chmod +x scripts/test-linux.sh
+./scripts/test-linux.sh
+./scripts/test-linux.sh --help
+./scripts/test-linux.sh --skip-tests
+./scripts/test-linux.sh --download-ffmpeg
+./scripts/test-linux.sh --appimage ~/Downloads/PixelPeeker-0.10.43-linux-x64.AppImage
+./scripts/test-linux.sh --tarball ~/Downloads/PixelPeeker-0.10.43-linux-x64.tar.gz
+```
+
+The default run reads `/etc/os-release`, the CPU architecture and the C library with the same rule as the app (glibc 2.28 or newer; musl and older glibc do not download static FFmpeg). It checks the Avalonia libraries (libX11, libICE, libSM, fontconfig, freetype, the usual X extensions, libGL, libxkbcommon) and that `DISPLAY` or `WAYLAND_DISPLAY` is set. Missing pieces are reported with a Fedora command, for example `sudo dnf install libX11 fontconfig`. Playback wants `sudo dnf install vlc-libs` from RPM Fusion. FFmpeg is `sudo dnf install ffmpeg` (`ffmpeg-free` in Fedora, or the RPM Fusion `ffmpeg` package). A missing .NET SDK is `sudo dnf install dotnet-sdk-10.0`, matching `global.json`.
+
+From source it runs `dotnet test FFmpegStudio.Linux.slnf` unless `--skip-tests` is set, publishes a self-contained Avalonia build for the machine's RID, runs that build with `--smoke` (initialize services and exit 0), then leaves the window open for about 12 seconds. If `xdotool` or `wmctrl` is installed it checks that a PixelPeeker window exists; otherwise it only checks that the process stayed alive. An AppImage without `libfuse.so.2` is started with `--appimage-extract-and-run` (`sudo dnf install fuse-libs` provides that library). `--download-ffmpeg` repeats the app's BtbN autobuild selection, verifies SHA-256, and runs `ffmpeg -version`, a one-second `testsrc` encode and `ffprobe` inside a temp directory that is deleted afterwards. The full log stays at `./pixelpeeker-linux-check.log`. The script exits 1 when any check is FAIL. WARN does not fail the run.
+
 The app references CommunityToolkit.Mvvm (MIT), Microsoft.Extensions.DependencyInjection (MIT), Microsoft.Data.Sqlite (MIT), SharpCompress (MIT) and SQLitePCLRaw (Apache 2.0; SQLite engine code is public domain). The portable publish includes the applicable runtime licenses and third-party notices in `licenses/`; see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). xUnit (Apache 2.0) is a development and test dependency and is not part of the desktop app. Restored direct and transitive dependencies are listed by NuGet with dotnet list package --include-transitive.
 
 ## Tests
