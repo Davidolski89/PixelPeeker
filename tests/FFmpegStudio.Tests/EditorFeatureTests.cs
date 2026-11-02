@@ -134,6 +134,13 @@ public sealed class EditorFeatureTests
             Assert.Equal(ThemeCatalog.LightId, vm.Settings.ThemeId);
             Assert.False(vm.Settings.DarkMode);
             Assert.Equal("Settings", vm.SettingsLabel);
+            Assert.False(vm.PreviousFrameCommand.CanExecute(null));
+            Assert.False(vm.MarkCutStartCommand.CanExecute(null));
+            Assert.False(vm.ClearCutsCommand.CanExecute(null));
+            Assert.True(vm.ShowFilteredPreviewCommand.CanExecute(null));
+            Assert.True(vm.ProbeHardwareCommand.CanExecute(null));
+            await vm.ShowFilteredPreviewCommand.ExecuteAsync(null);
+            Assert.False(vm.PreviewLoading);
         }
         finally
         {

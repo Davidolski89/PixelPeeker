@@ -2,7 +2,7 @@
 
 Navigation guide for small changes. Start with the feature table, then read only the relevant implementation and tests.
 Paths are relative to this project root. Source projects/namespaces retain `FFmpegStudio`; the desktop executable is `PixelPeeker.exe`.
-Verified against source on 2026-10-27 (0.10.46, Avalonia controls follow the WPF templates). Update locations when structure changes, not after every UI tweak.
+Verified against source on 2026-11-02 (0.10.47, Avalonia preview, codec memory and FFmpeg check follow WPF). Update locations when structure changes, not after every UI tweak.
 
 ## 1. Architecture overview
 
@@ -159,7 +159,7 @@ The WPF app remains the full Windows product. The Avalonia shell edits, queues, 
 | Efficiency mode and process-tree job objects | `IProcessControl`; Windows implementation in `WindowsEfficiencyMode` / `WindowsProcessJob` | EcoQoS and job objects |
 | CPU, RAM, GPU readings | `IHardwareMonitor` | kernel32 sensors; Linux uses `/proc` and `nvidia-smi` when present |
 | Managed FFmpeg download | `IFmpegDistribution` | gyan.dev on Windows. Linux: `LinuxFfmpegDistribution` plus `LinuxLibc` (glibc ≥ 2.28; no musl download) |
-| Editor, settings, comparison, analysis, playback, audio, hardware text, results, countdown | `EditorViewModel`, `EditorFeatures`, `EncodeComparisonSession` and `FFmpegStudio.Avalonia` (`StudioDialogs`, `ComparisonAvailabilityView`, `AvaloniaHints`) | WPF still draws its own bitmap comparison and DataGrid. Its power path stays `SetSuspendState` / `shutdown.exe` |
+| Editor, settings, comparison, analysis, playback, filtered preview, codec memory, encoder probe, audio, hardware text, results, countdown | `EditorViewModel`, `EditorFeatures`, `EncodeComparisonSession` and `FFmpegStudio.Avalonia` (`StudioDialogs`, `ComparisonAvailabilityView`, `AvaloniaHints`) | WPF still draws its own bitmap comparison and DataGrid. Its power path stays `SetSuspendState` / `shutdown.exe` |
 | Linux suspend and poweroff | `src/FFmpegStudio.Infrastructure/SessionPower.cs` | `systemctl`, then `loginctl`; no-op when neither exists. Tests call `Resolve` only |
 | Linux packages | `Publish-Linux.ps1`, `Publish.ps1 -Linux`, `packaging/linux/AppRun`, `packaging/linux/pixelpeeker.desktop` | Versioned and current folders under `artifacts/`. CI uploads tar.gz and AppImage files; it does not publish a GitHub Release |
 | Full editor, dialogs, themes in the WPF resource dictionary, LibVLC playback | `FFmpegStudio.Desktop` | WPF, `net10.0-windows`, LibVLCSharp.WPF, bundled VideoLAN.LibVLC.Windows |

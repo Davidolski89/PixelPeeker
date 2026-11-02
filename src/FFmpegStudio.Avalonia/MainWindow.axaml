@@ -99,7 +99,7 @@
                     <TabItem x:Name="PreviewTab" Header="{Binding PreviewLabel}">
                         <Grid x:Name="PreviewWorkspace" ColumnDefinitions="400,12,*">
                             <Grid RowDefinitions="*,Auto" MinWidth="300">
-                                <Border x:Name="PreviewImageArea" Background="#080B10" CornerRadius="5" ClipToBounds="True" ToolTip.Tip="{Binding PlaybackStatus}">
+                                <Border x:Name="PreviewImageArea" Background="#080B10" CornerRadius="5" ClipToBounds="True" ToolTip.Tip="{Binding PreviewStatus}">
                                     <Grid>
                                         <TextBlock Text="{local:Tr Vorschau}" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource Muted}"/>
                                         <Image x:Name="PreviewImage" Stretch="Uniform"/>
@@ -169,6 +169,10 @@
                                     <ScrollViewer x:CompileBindings="False">
                                         <StackPanel Margin="4" IsEnabled="{Binding HasEditableMedia}">
                                             <TextBlock Classes="section" Text="{Binding FilterHeading}"/>
+                                            <WrapPanel>
+                                                <Button x:Name="ShowPreviewButton" Content="{local:Tr Originalframe}" Command="{Binding ShowPreviewCommand}"/>
+                                                <Button x:Name="ShowFilteredPreviewButton" Content="{local:Tr Filtervorschau aktualisieren}" Command="{Binding ShowFilteredPreviewCommand}"/>
+                                            </WrapPanel>
                                             <TextBlock Classes="label" Text="{local:Tr Skalierung}"/>
                                             <ComboBox ItemsSource="{x:Static vm:EditorViewModel.ScaleModes}" SelectedItem="{Binding SelectedMedia.Options.Filters.ScaleMode}" ItemTemplate="{StaticResource EnumItem}"/>
                                             <TextBlock Classes="label" Text="{Binding WidthHeightLabel}"/>
@@ -320,7 +324,11 @@
                                                 <CheckBox Content="{local:Tr CUDA-Skalierung}" IsChecked="{Binding SelectedMedia.Options.Video.CudaScale}" IsVisible="{Binding SelectedMedia.Options.Video.IsNvenc}"/>
                                                 <TextBlock Classes="label" Text="{local:Tr GPU-Index}" IsVisible="{Binding SelectedMedia.Options.Video.IsNvenc}"/>
                                                 <TextBox Text="{Binding SelectedMedia.Options.Video.GpuIndex}" IsVisible="{Binding SelectedMedia.Options.Video.IsNvenc}"/>
-                                                <Button x:Name="ExpertButton" Content="{Binding ExpertLabel}" Command="{Binding ExpertOptionsCommand}"/>
+                                                <WrapPanel>
+                                                    <Button x:Name="ExpertButton" Content="{Binding ExpertLabel}" Command="{Binding ExpertOptionsCommand}"/>
+                                                    <Button x:Name="ProbeButton" Content="{local:Tr Encoder tatsächlich prüfen}" Command="{Binding ProbeHardwareCommand}"/>
+                                                </WrapPanel>
+                                                <TextBlock Text="{Binding GpuProbeText}" FontSize="11" TextWrapping="Wrap"/>
                                             </StackPanel>
                                         </Expander>
                                     </StackPanel>

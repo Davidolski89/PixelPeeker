@@ -20,7 +20,10 @@ public static class AvaloniaHints
         ["ResultsButton"] = "CompareResults",
         ["AnalyzeButton"] = "AnalyzeQuality",
         ["ExpertButton"] = "ExpertOptions",
-        ["TestEncodeButton"] = "TestEncode"
+        ["TestEncodeButton"] = "TestEncode",
+        ["ShowPreviewButton"] = "ShowPreview",
+        ["ShowFilteredPreviewButton"] = "ShowFilteredPreview",
+        ["ProbeButton"] = "ProbeHardware"
     };
 
     public static void Apply(Control root, AppSettings settings)

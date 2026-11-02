@@ -1,5 +1,9 @@
 # Änderungen
 
+## 0.10.47 – 2. November 2026
+
+- Die Avalonia-Vorschau verhält sich wie die Windows-Ansicht: der Zeitregler lädt das Quellbild nach, Originalframe und Filtervorschau sind getrennt, und Schnittaktionen sind nur verfügbar, wenn ein Bild geladen ist. Neue Dateien übernehmen die letzte Codec-Erinnerung einschließlich Audio und Untertitel. „Encoder tatsächlich prüfen“ zeigt das Probe-Ergebnis. Ist die Updateprüfung eingeschaltet, sucht Avalonia wie Windows regelmäßig nach einem FFmpeg-Build. Die Windows-Oberfläche bleibt unverändert.
+
 ## 0.10.46 – 27. Oktober 2026
 
 - Die Avalonia-Oberfläche übernimmt die noch offenen WPF-Details: Schieberegler mit 4-Pixel-Spur und 16-Pixel-Punkt, Kombinationsfelder mit Häkchen, den roten Schnittstreifen, die Umschaltung zwischen aktuellen Einstellungen und Queue-Job im Befehls-Tab und den Untertitel „VIDEO · AUDIO · PRÄZISION“. Der Hinweis zu FFmpeg und libvlc steht unter der Statuszeile. Die FFmpeg-Verwaltung zeigt die verfügbare Version, lokale Programme und Rollback. Der Vergleich hat Modus, Legende, Fokus und Leertaste-für-Referenz. Fertige Jobs lassen sich in der Tabelle ziehen; zwei markierte Encodes öffnen den Vergleich. Nach einem erfolgreichen Lauf zeigt Linux eine Freedesktop-Benachrichtigung (`gdbus`, sonst `dbus-send`, sonst `notify-send`). Die Windows-Oberfläche bleibt unverändert.
