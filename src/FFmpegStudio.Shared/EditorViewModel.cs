@@ -35,6 +35,7 @@ public sealed partial class EditorViewModel : ObservableObject
     private readonly EncodeComparisonService comparison;
     private readonly FolderWatchService watcher;
     private readonly IHardwareMonitor hardware;
+    private readonly HardwareDetectionService detection;
     private readonly CancellationTokenSource background = new();
     private readonly List<INotifyPropertyChanged> observed = [];
     private readonly HashSet<string> importing = new(StringComparer.OrdinalIgnoreCase);
@@ -44,12 +45,24 @@ public sealed partial class EditorViewModel : ObservableObject
     private bool initialized;
     private int saveGeneration;
     private RemoteBuild? remote;
+    private bool settingPreviewPosition;
+    private bool filteredPreview;
+    private CancellationTokenSource? previewCancellation;
+    private long previewGeneration;
+    private long seekGeneration;
+    private string previewError = "";
+    private static readonly HashSet<string> AudioCodecFields =
+    [
+        nameof(AudioTrackOptions.BitRateKbps), nameof(AudioTrackOptions.CompressionLevel), nameof(AudioTrackOptions.BitrateMode),
+        nameof(AudioTrackOptions.Application), nameof(AudioTrackOptions.Channels), nameof(AudioTrackOptions.SampleRate), nameof(AudioTrackOptions.ChannelLayout)
+    ];
 
     public EditorViewModel(SettingsService settings, FFmpegVersionService versions, IFmpegDistribution distribution,
         FFmpegCapabilityService capabilityService, MediaProbeService probe, PreviewService preview, FrameNavigationService frames,
         QueueService queue, QueueStore store, PresetService presets, FFmpegCommandBuilder builder, LoggingService log,
         IPlaybackSession playback, IEditorPrompts prompts, IUiMarshal ui, AppPaths paths, QualityAnalysisService quality,
-        SubtitleService subtitles, EncodeComparisonService comparison, FolderWatchService watcher, IHardwareMonitor hardware)
+        SubtitleService subtitles, EncodeComparisonService comparison, FolderWatchService watcher, IHardwareMonitor hardware,
+        HardwareDetectionService detection)
     {
         this.settings = settings;
         this.versions = versions;
@@ -72,6 +85,7 @@ public sealed partial class EditorViewModel : ObservableObject
         this.comparison = comparison;
         this.watcher = watcher;
         this.hardware = hardware;
+        this.detection = detection;
         log.Written += line => ui.Invoke(() => AppendLog(line));
         watcher.OnReady = async (path, rule, ct) =>
         {
@@ -87,7 +101,12 @@ public sealed partial class EditorViewModel : ObservableObject
         Playback = playback;
         playback.Changed += signal => ui.Invoke(() =>
         {
-            if (signal.Kind == PlaybackSignalKind.Time && PlaybackActive) PreviewSeconds = signal.Value;
+            if (signal.Kind == PlaybackSignalKind.Time && PlaybackActive)
+            {
+                settingPreviewPosition = true;
+                try { PreviewSeconds = signal.Value; }
+                finally { settingPreviewPosition = false; }
+            }
             if (signal.Kind is PlaybackSignalKind.Ended or PlaybackSignalKind.Failed)
             {
                 PlaybackActive = false;
@@ -173,6 +192,8 @@ public sealed partial class EditorViewModel : ObservableObject
     [ObservableProperty] private SubtitleTrackOptions? selectedSubtitle;
     [ObservableProperty] private SourceFramePosition? pendingCutStart;
     [ObservableProperty] private CutRegion? selectedCut;
+    [ObservableProperty] private string previewStatus = L.T("Zeitregler bewegen: Die Vorschau wird automatisch geladen.");
+    [ObservableProperty] private string gpuProbeText = "";
 
     public string SelectedEncoder
     {
@@ -334,6 +355,7 @@ public sealed partial class EditorViewModel : ObservableObject
             await InstallFfmpegAsync();
         watcher.Start();
         _ = MonitorLoopAsync(background.Token);
+        _ = UpdateLoopAsync(background.Token);
     }
 
     public Action? CloseRequested { get; set; }
@@ -359,6 +381,43 @@ public sealed partial class EditorViewModel : ObservableObject
             log.Write(L.T("Hardwaremonitor nicht verfügbar."), e);
             ui.Invoke(() => { HardwareText = L.T("Hardwaremonitor nicht verfügbar."); OnPropertyChanged(nameof(HardwareText)); });
         }
+    }
+
+    private async Task UpdateLoopAsync(CancellationToken ct)
+    {
+        try
+        {
+            await Task.Delay(1500, ct);
+            while (!ct.IsCancellationRequested)
+            {
+                if (settings.Current.CheckUpdates && (settings.Current.LastUpdateCheck is null || DateTimeOffset.UtcNow - settings.Current.LastUpdateCheck >= TimeSpan.FromHours(Math.Max(1, settings.Current.UpdateIntervalHours))))
+                {
+                    try
+                    {
+                        var build = await distribution.CheckAsync(ct);
+                        var newer = OperatingSystem.IsWindows()
+                            ? VersionMetadata.IsNewBuild(versions.Active?.Version, build.Version)
+                            : LinuxFfmpegSources.IsNewer(versions.Active?.Version, build.Version);
+                        settings.Current.LastUpdateCheck = DateTimeOffset.UtcNow;
+                        await settings.SaveAsync();
+                        ui.Invoke(() =>
+                        {
+                            remote = build;
+                            AvailableVersion = build.Version;
+                            if (settings.Current.AutoUpdate && versions.Active?.Managed == true && newer && !IsBusy && distribution.SupportsManagedInstall)
+                                _ = InstallFfmpegAsync();
+                        });
+                    }
+                    catch (Exception e) when (e is not OperationCanceledException)
+                    {
+                        log.Write(L.T("Automatische Updateprüfung nicht möglich."), e);
+                        ui.Invoke(() => AvailableVersion = L.T("Online-Prüfung fehlgeschlagen"));
+                    }
+                }
+                await Task.Delay(TimeSpan.FromMinutes(1), ct);
+            }
+        }
+        catch (OperationCanceledException) { }
     }
 
     private async Task CompleteBatchAsync()
@@ -439,9 +498,12 @@ public sealed partial class EditorViewModel : ObservableObject
                     var info = await probe.ProbeAsync(tools, file, ct);
                     if (info.Video is null) throw new InvalidDataException(L.T("Keine Videospur vorhanden."));
                     var options = EncodingOptions.ForMedia(info);
-                    if (settings.Current.Codecs.LastVideoEncoder.Length > 0 && VideoEncoderPolicy.IsAllowed(settings.Current.Codecs.LastVideoEncoder) && Capabilities?.Find(settings.Current.Codecs.LastVideoEncoder) is not null)
+                    if (Capabilities is { } available) settings.Current.Codecs.ApplyToNewFile(options, available);
+                    if (Capabilities?.Find(options.Video.Encoder) is null)
                     {
-                        options.Video.Encoder = settings.Current.Codecs.LastVideoEncoder;
+                        var fallback = Capabilities?.ModernVideo.FirstOrDefault(encoder => !encoder.Hardware)
+                            ?? throw new InvalidOperationException(L.T("Kein moderner Softwareencoder verfügbar."));
+                        options.Video.Encoder = fallback.Name;
                         CodecMemory.CopyVideo(settings.Current.Codecs.ForVideo(options.Video.Encoder), options.Video);
                     }
                     if (info.Video.IsHdr) options.Video.PixelFormat = "yuv420p10le";
@@ -479,25 +541,30 @@ public sealed partial class EditorViewModel : ObservableObject
 
     partial void OnSelectedMediaChanged(EditorMedia? value)
     {
-        foreach (var item in observed) item.PropertyChanged -= OptionsChanged;
-        observed.Clear();
+        ReleaseObserved();
         if (observedCuts is not null) observedCuts.CollectionChanged -= CutsChanged;
         observedCuts = value?.Options?.Cuts;
         if (observedCuts is not null) observedCuts.CollectionChanged += CutsChanged;
         PendingCutStart = null;
         SelectedCut = null;
+        filteredPreview = false;
+        DisplayedFrame = null;
+        previewError = "";
         if (value?.Options is { } options)
         {
             Observe(options);
             Observe(options.Video);
             Observe(options.Filters);
             foreach (var audio in options.Audio) Observe(audio);
+            foreach (var subtitle in options.Subtitles) Observe(subtitle);
             SelectedAudio = options.Audio.FirstOrDefault();
             MediaDetails = value.Details;
             PreviewPath = value.ThumbnailPath;
             var matching = Presets.FirstOrDefault(preset => preset.Name == options.PresetName);
             if (!ReferenceEquals(SelectedPreset, matching)) { selectedPreset = matching; OnPropertyChanged(nameof(SelectedPreset)); }
-            PreviewSeconds = Math.Min(3, Math.Max(0, (value.Info?.Duration ?? 10) * .1));
+            settingPreviewPosition = true;
+            try { PreviewSeconds = Math.Min(3, Math.Max(0, (value.Info?.Duration ?? 10) * .1)); }
+            finally { settingPreviewPosition = false; }
         }
         else
         {
@@ -520,7 +587,12 @@ public sealed partial class EditorViewModel : ObservableObject
         RefreshEncoderChoices(false);
         RefreshCuts();
         RefreshSummary();
-        if (value?.CanEdit == true) RememberSelectedVideo();
+        UpdatePreviewStatus();
+        if (value?.CanEdit == true)
+        {
+            RememberSelectedVideo();
+            _ = RequestPreviewAsync(PreviewSeconds, FrameSeek.Nearest, true);
+        }
     }
 
     partial void OnSelectedPresetChanged(Preset? value)
@@ -546,6 +618,25 @@ public sealed partial class EditorViewModel : ObservableObject
     {
         observed.Add(value);
         value.PropertyChanged += OptionsChanged;
+        if (value is VideoOptions or AudioTrackOptions && value is INotifyPropertyChanging changing)
+            changing.PropertyChanging += OptionsChanging;
+    }
+
+    private void ReleaseObserved()
+    {
+        foreach (var item in observed)
+        {
+            item.PropertyChanged -= OptionsChanged;
+            if (item is INotifyPropertyChanging changing) changing.PropertyChanging -= OptionsChanging;
+        }
+        observed.Clear();
+    }
+
+    private void OptionsChanging(object? sender, PropertyChangingEventArgs e)
+    {
+        if (adjustingEncoder || applyingPreset || e.PropertyName != nameof(VideoOptions.Encoder) || sender is null) return;
+        if (sender is VideoOptions video) settings.Current.Codecs.Remember(video);
+        else if (sender is AudioTrackOptions audio) settings.Current.Codecs.Remember(audio);
     }
 
     private void OptionsChanged(object? sender, PropertyChangedEventArgs e)
@@ -557,10 +648,29 @@ public sealed partial class EditorViewModel : ObservableObject
             if (SelectedPreset is not null) SelectedPreset = null;
         }
         if (sender is VideoOptions && e.PropertyName == nameof(VideoOptions.Encoder)) RefreshEncoderChoices(true);
+        if (sender is AudioTrackOptions audio && e.PropertyName == nameof(AudioTrackOptions.Encoder)) RestoreAudioCodec(audio);
         if (sender is EncodingOptions && e.PropertyName == nameof(EncodingOptions.CutsEnabled) && SelectedMedia?.Options is { } current)
             CutEditing.EnsureAudio(current);
+        RememberCodecChange(sender, e);
         RefreshSummary();
-        RememberSelectedVideo();
+    }
+
+    private void RestoreAudioCodec(AudioTrackOptions audio)
+    {
+        adjustingEncoder = true;
+        try { settings.Current.Codecs.Restore(audio); }
+        finally { adjustingEncoder = false; }
+    }
+
+    private void RememberCodecChange(object? sender, PropertyChangedEventArgs e)
+    {
+        if (sender is VideoOptions video) settings.Current.Codecs.Remember(video);
+        else if (sender is AudioTrackOptions audio && (e.PropertyName == nameof(AudioTrackOptions.Encoder) || AudioCodecFields.Contains(e.PropertyName ?? "")))
+            settings.Current.Codecs.Remember(audio);
+        else if (sender is SubtitleTrackOptions subtitle && e.PropertyName == nameof(SubtitleTrackOptions.Encoder) && !string.IsNullOrWhiteSpace(subtitle.Encoder))
+            settings.Current.Codecs.LastSubtitleEncoder = subtitle.Encoder;
+        else return;
+        ScheduleSave();
     }
 
     private void CutsChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -595,6 +705,7 @@ public sealed partial class EditorViewModel : ObservableObject
             OnPropertyChanged(nameof(SelectedEncoder));
             OnPropertyChanged(nameof(VideoPreset));
             OnPropertyChanged(nameof(VideoQuality));
+            GpuProbeText = "";
         }
         finally { adjustingEncoder = false; }
         NotifyPresentation();
@@ -630,7 +741,45 @@ public sealed partial class EditorViewModel : ObservableObject
         OnPropertyChanged(nameof(CutEntries));
         OnPropertyChanged(nameof(CutSummary));
         OnPropertyChanged(nameof(CutPositionStatus));
+        NotifyPreviewCommands();
     }
+
+    private void NotifyPreviewCommands()
+    {
+        PreviousFrameCommand.NotifyCanExecuteChanged();
+        NextFrameCommand.NotifyCanExecuteChanged();
+        MarkCutStartCommand.NotifyCanExecuteChanged();
+        MarkCutEndCommand.NotifyCanExecuteChanged();
+        CutToEndCommand.NotifyCanExecuteChanged();
+        JumpCutStartCommand.NotifyCanExecuteChanged();
+        JumpCutEndCommand.NotifyCanExecuteChanged();
+        RemoveCutCommand.NotifyCanExecuteChanged();
+        ClearCutsCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnDisplayedFrameChanged(SourceFramePosition? value) => RefreshCuts();
+    partial void OnPreviewLoadingChanged(bool value) => NotifyPreviewCommands();
+    partial void OnPlaybackActiveChanged(bool value) => NotifyPreviewCommands();
+    partial void OnPendingCutStartChanged(SourceFramePosition? value) => RefreshCuts();
+    partial void OnSelectedCutChanged(CutRegion? value) => RefreshCuts();
+    partial void OnPreviewSecondsChanged(double value)
+    {
+        if (settingPreviewPosition) return;
+        if (PlaybackActive)
+        {
+            var id = ++seekGeneration;
+            _ = DebouncedSeek(id, value);
+            return;
+        }
+        _ = RequestPreviewAsync(value, FrameSeek.Nearest, true);
+    }
+
+    private bool CanStepPreview() => !PlaybackActive && !PlaybackBusy && !PreviewLoading && DisplayedFrame is not null && SelectedMedia is not null;
+    private bool CanEndCut() => CanStepPreview() && PendingCutStart is { } start && DisplayedFrame!.Seconds > start.Seconds + 1e-7;
+    private bool HasCutStart() => !PlaybackActive && !PlaybackBusy && PendingCutStart is not null && SelectedMedia is not null;
+    private bool HasSelectedCut() => SelectedCut is not null && SelectedMedia is not null;
+    private bool HasSelectedCutEnd() => HasSelectedCut() && SelectedCut!.End is not null;
+    private bool HasCuts() => SelectedMedia?.Options?.Cuts.Count > 0;
 
     private void SetFilter(Action<FilterOptions> change)
     {
@@ -646,6 +795,13 @@ public sealed partial class EditorViewModel : ObservableObject
     {
         if (SelectedMedia?.Options is not { } options) return;
         settings.Current.Codecs.Remember(options.Video);
+        if (applyingPreset)
+        {
+            foreach (var audio in options.Audio.Where(track => track.Action == TrackAction.Encodieren))
+                settings.Current.Codecs.Remember(audio);
+            foreach (var subtitle in options.Subtitles.Where(track => track.Action == TrackAction.Encodieren && !string.IsNullOrWhiteSpace(track.Encoder)))
+                settings.Current.Codecs.LastSubtitleEncoder = subtitle.Encoder;
+        }
         ScheduleSave();
     }
 
@@ -664,65 +820,152 @@ public sealed partial class EditorViewModel : ObservableObject
         }
     }
 
-    [RelayCommand] private Task ShowPreviewAsync() => RunAsync(L.T("Vorschau wird geladen …"), ct => LoadExactFrameAsync(PreviewSeconds, FrameSeek.Nearest, ct));
-    [RelayCommand] private Task PreviousFrameAsync() => RunAsync(L.T("Vorschau wird geladen …"), ct => LoadExactFrameAsync(DisplayedFrame?.Seconds ?? PreviewSeconds, FrameSeek.Previous, ct));
-    [RelayCommand] private Task NextFrameAsync() => RunAsync(L.T("Vorschau wird geladen …"), ct => LoadExactFrameAsync(DisplayedFrame?.Seconds ?? PreviewSeconds, FrameSeek.Next, ct));
-
-    internal async Task LoadExactFrameAsync(double seconds, FrameSeek direction, CancellationToken ct)
+    [RelayCommand] private Task ShowPreviewAsync()
     {
-        if (SelectedMedia?.Info is not { } info || versions.Active is not { } tools)
-            throw new InvalidOperationException(L.T("Datei und FFmpeg werden für die Vorschau benötigt."));
-        PreviewLoading = true;
+        filteredPreview = false;
+        return RequestPreviewAsync(PreviewSeconds);
+    }
+
+    [RelayCommand] private Task ShowFilteredPreviewAsync()
+    {
+        filteredPreview = true;
+        return RequestPreviewAsync(PreviewSeconds);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanStepPreview))]
+    private Task PreviousFrameAsync() => RequestPreviewAsync(DisplayedFrame!.Seconds, FrameSeek.Previous);
+
+    [RelayCommand(CanExecute = nameof(CanStepPreview))]
+    private Task NextFrameAsync() => RequestPreviewAsync(DisplayedFrame!.Seconds, FrameSeek.Next);
+
+    private async Task DebouncedSeek(long id, double seconds)
+    {
         try
         {
-            var frame = await frames.ResolveAsync(tools, info, seconds, direction, ct);
-            var width = Math.Min(1280, info.Video?.Width ?? 1280);
-            PreviewPath = await preview.FrameAsync(tools, info, frame.Seconds, width: width, exactFrame: frame, ct: ct);
-            DisplayedFrame = frame;
-            PreviewSeconds = frame.Seconds;
-            StatusText = L.F($"Geladenes Quellbild: {frame.Seconds:0.000000} s");
+            await Task.Delay(80);
+            if (id == seekGeneration && PlaybackActive) await SeekPlaybackAsync(seconds);
         }
-        finally { PreviewLoading = false; }
+        catch (Exception e) { log.Write(L.T("Wiedergabe"), e); }
     }
 
-    [RelayCommand] private async Task MarkCutStartAsync()
+    private Task RequestPreviewAsync(double seconds, FrameSeek direction = FrameSeek.Nearest, bool debounce = false)
     {
-        if (SelectedMedia?.Info is null) return;
-        PendingCutStart = await ResolveFrameAsync(PreviewSeconds);
-        RefreshCuts();
+        if (PlaybackActive) return SeekPlaybackAsync(seconds);
+        var generation = ++previewGeneration;
+        previewCancellation?.Cancel();
+        previewCancellation = null;
+        if (SelectedMedia?.Info is not { } info || versions.Active is not { } tools || !File.Exists(info.Path) || info.Video is null)
+        {
+            DisplayedFrame = null;
+            PreviewLoading = false;
+            UpdatePreviewStatus();
+            return Task.CompletedTask;
+        }
+        var cancellation = new CancellationTokenSource();
+        cancellation.CancelAfter(TimeSpan.FromSeconds(45));
+        previewCancellation = cancellation;
+        PreviewLoading = true;
+        previewError = "";
+        UpdatePreviewStatus();
+        var filtered = filteredPreview;
+        return Load();
+
+        async Task Load()
+        {
+            try
+            {
+                if (debounce) await Task.Delay(80, cancellation.Token);
+                var frame = await frames.ResolveAsync(tools, info, seconds, direction, cancellation.Token);
+                var options = Json.Clone(SelectedMedia!.Options!);
+                options.Video.CudaScale = false;
+                options.Filters.FrameRate = 0;
+                if (filtered && options.Subtitles.Any(track => track.IsBitmap && track.Action == TrackAction.Einbrennen))
+                    throw new InvalidOperationException(L.T("Bilduntertitel-Burn-in bitte über einen Testencode prüfen."));
+                var filter = filtered ? FilterService.Build(info, options) : "";
+                var geometry = ScalingService.Calculate(info.Video!, filtered ? options.Filters : new FilterOptions());
+                var width = Math.Min(1280, filtered && options.Filters.PadEnabled ? options.Filters.PadWidth : geometry.Width);
+                var custom = filtered && options.Filters.CustomChain.Length > 0;
+                PreviewPath = await preview.FrameAsync(tools, info, frame.Seconds, filter, width: width, exactFrame: custom ? null : frame, ct: cancellation.Token);
+                cancellation.Token.ThrowIfCancellationRequested();
+                if (generation != previewGeneration || !ReferenceEquals(info, SelectedMedia?.Info)) return;
+                DisplayedFrame = frame;
+                settingPreviewPosition = true;
+                try { PreviewSeconds = frame.Seconds; }
+                finally { settingPreviewPosition = false; }
+                StatusText = L.F($"Geladenes Quellbild: {frame.Seconds:0.000000} s") + " · " + L.T(filtered ? "Filtervorschau" : "Originalframe");
+            }
+            catch (OperationCanceledException) when (generation != previewGeneration) { }
+            catch (Exception e)
+            {
+                if (generation == previewGeneration)
+                {
+                    previewError = e is OperationCanceledException ? L.T("Zeitlimit beim Laden der Vorschau überschritten.") : e.Message;
+                    DisplayedFrame = null;
+                    log.Write(L.T("Frame-Vorschau"), e);
+                }
+            }
+            finally
+            {
+                if (generation == previewGeneration)
+                {
+                    previewCancellation = null;
+                    PreviewLoading = false;
+                    UpdatePreviewStatus();
+                }
+                cancellation.Dispose();
+            }
+        }
     }
 
-    [RelayCommand] private async Task MarkCutEndAsync()
+    private void UpdatePreviewStatus()
     {
-        if (SelectedMedia?.Options is null || PendingCutStart is not { } start) return;
-        var end = await ResolveFrameAsync(PreviewSeconds);
-        if (end.Seconds <= start.Seconds) { StatusText = L.T("Das Schnittende muss hinter dem Start liegen."); return; }
+        PreviewStatus = PlaybackBusy && PlaybackActive ? L.T("Wiedergabe wird angehalten. Exaktes Quellbild wird geladen …") :
+            PlaybackActive ? L.T("Eingabedatei wird abgespielt · schnelle Suche. Für genaue Schnitte pausieren.") :
+            previewError.Length > 0 ? L.F($"Vorschau fehlgeschlagen: {previewError}") :
+            PreviewLoading ? L.T("Vorschau wird geladen …") :
+            DisplayedFrame is { } frame ? L.F($"Geladenes Quellbild: {frame.Seconds:0.000000} s") + " · " + L.T(filteredPreview ? "Filtervorschau" : "Originalframe") :
+            L.T("Zeitregler bewegen: Die Vorschau wird automatisch geladen.");
+    }
+
+    [RelayCommand(CanExecute = nameof(CanStepPreview))]
+    private void MarkCutStart() => PendingCutStart = DisplayedFrame;
+
+    [RelayCommand(CanExecute = nameof(CanEndCut))]
+    private void MarkCutEnd()
+    {
+        if (SelectedMedia?.Options is null || PendingCutStart is not { } start || DisplayedFrame is not { } end) return;
         SelectedCut = CutEditing.Add(SelectedMedia.Options, start, end);
         PendingCutStart = null;
-        RefreshCuts();
         RefreshSummary();
     }
 
-    [RelayCommand] private void RemoveCut()
+    [RelayCommand(CanExecute = nameof(HasSelectedCut))]
+    private void RemoveCut()
     {
         if (SelectedMedia?.Options is null || SelectedCut is null) return;
         SelectedMedia.Options.Cuts.Remove(SelectedCut);
         SelectedCut = null;
     }
 
-    [RelayCommand] private void ClearCuts()
+    [RelayCommand(CanExecute = nameof(HasCuts))]
+    private void ClearCuts()
     {
         SelectedMedia?.Options?.Cuts.Clear();
         PendingCutStart = null;
         SelectedCut = null;
     }
 
-    private async Task<SourceFramePosition> ResolveFrameAsync(double seconds)
+    [RelayCommand]
+    private Task ProbeHardwareAsync() => RunAsync(L.T("Encoder wird mit einem kurzen Encode geprüft …"), async ct =>
     {
-        if (SelectedMedia?.Info is { } info && versions.Active is { } tools)
-            return await frames.ResolveAsync(tools, info, seconds);
-        return new SourceFramePosition(Math.Max(0, seconds), 0);
-    }
+        var video = SelectedMedia?.Options?.Video ?? throw new InvalidOperationException(L.T("Datei auswählen."));
+        if (versions.Active is not { } tools) throw new InvalidOperationException(L.T("FFmpeg fehlt."));
+        var result = await detection.ProbeEncoderAsync(tools, video.Encoder, video.GpuIndex, video.PixelFormat, ct);
+        GpuProbeText = result.Details;
+        StatusText = result.Usable
+            ? L.T("Encoder-Probe erfolgreich.")
+            : L.T("Encoder ist nicht nutzbar. libx264, libx265 oder libsvtav1 wählen.");
+    });
 
     [RelayCommand] private Task DetectCropAsync() => RunAsync(L.T("Schwarze Balken werden geprüft …"), async ct =>
     {
@@ -825,6 +1068,8 @@ public sealed partial class EditorViewModel : ObservableObject
     {
         remote = await distribution.CheckAsync(ct);
         AvailableVersion = remote.Version;
+        settings.Current.LastUpdateCheck = DateTimeOffset.UtcNow;
+        await settings.SaveAsync();
         var newer = OperatingSystem.IsWindows()
             ? VersionMetadata.IsNewBuild(versions.Active?.Version, remote.Version)
             : LinuxFfmpegSources.IsNewer(versions.Active?.Version, remote.Version);

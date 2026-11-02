@@ -69,15 +69,12 @@ public sealed partial class EditorViewModel
         PlaybackBusy = true;
         StatusText = L.T("Wiedergabe wird angehalten. Exaktes Quellbild wird geladen …");
         var seconds = await playback.HoldAsync(playbackGeneration, false, CancellationToken.None);
-        PreviewSeconds = seconds;
+        settingPreviewPosition = true;
+        try { PreviewSeconds = seconds; }
+        finally { settingPreviewPosition = false; }
         PlaybackActive = false;
         PlaybackBusy = false;
-        try { await LoadExactFrameAsync(seconds, FrameSeek.Nearest, CancellationToken.None); }
-        catch (Exception e)
-        {
-            StatusText = e.Message;
-            log.Write(L.T("Frame-Vorschau"), e);
-        }
+        await RequestPreviewAsync(seconds);
     }
 
     [RelayCommand]

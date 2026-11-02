@@ -118,7 +118,9 @@ public sealed partial class EditorViewModel
 
     public string CutPositionStatus => PendingCutStart is { } start
         ? L.F($"Schnittstart: {start.Seconds:0.000000} s · erstes erhaltenes Bild suchen und Ende setzen.")
-        : L.T("Start setzen, dann das erste Bild, das erhalten bleiben soll.");
+        : SelectedMedia?.Options is { } options && DisplayedFrame is { } frame && CutTimeline.Active(options) && options.Cuts.Any(cut => frame.Seconds >= cut.Start.Seconds - 1e-7 && (cut.End is null || frame.Seconds < cut.End.Seconds - 1e-7))
+            ? L.T("Dieses Quellbild wird beim Export entfernt.")
+            : L.T("Start = erstes zu entfernendes Bild · Ende = erstes danach zu erhaltendes Bild.");
 
     public void AppendLog(string line)
     {
@@ -189,16 +191,16 @@ public sealed partial class EditorViewModel
     [RelayCommand]
     private Task SeekForwardAsync() => SeekByAsync(10);
 
-    private async Task SeekByAsync(double delta)
+    private Task SeekByAsync(double delta)
     {
         var next = Math.Max(0, PreviewSeconds + delta);
         var duration = SelectedMedia?.Info?.Duration;
         if (duration is > 0) next = Math.Min(next, duration.Value);
         PreviewSeconds = next;
-        if (PlaybackActive) await SeekPlaybackAsync(next);
+        return Task.CompletedTask;
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(HasCutStart))]
     private void CutToEnd()
     {
         if (SelectedMedia?.Options is null || PendingCutStart is not { } start) return;
@@ -208,14 +210,14 @@ public sealed partial class EditorViewModel
         RefreshSummary();
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(HasSelectedCut))]
     private void JumpCutStart()
     {
         if (SelectedCut is null) return;
         PreviewSeconds = SelectedCut.Start.Seconds;
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(HasSelectedCutEnd))]
     private void JumpCutEnd()
     {
         if (SelectedCut?.End is not { } end) return;
